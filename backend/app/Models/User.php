@@ -46,6 +46,11 @@ class User extends Authenticatable
         return $this->agentAssignments()->where('is_current', true)->first();
     }
 
+    public function assignedPollingUnitId(): ?int
+    {
+        return $this->currentAssignment()?->polling_unit_id;
+    }
+
     public function registrations(): HasMany
     {
         return $this->hasMany(Registration::class, 'registered_by');
