@@ -6,14 +6,20 @@ use App\Http\Controllers\Controller;
 use App\Models\Registration;
 use App\Models\User;
 use App\Services\AuditService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class RegistrationController extends Controller
 {
-    public function agentDashboard(Request $request)
+    public function agentDashboard(Request $request): JsonResponse
     {
-        $agent = auth()->user();
+        $agent = $request->user();
+
+        if (!$agent instanceof User) {
+            abort(401, 'Unauthenticated.');
+        }
+
         $puId = $request->attributes->get('agent_polling_unit_id');
         $pu = \App\Models\PollingUnit::with('ward.lga')->find($puId);
 
@@ -56,12 +62,18 @@ class RegistrationController extends Controller
         ]);
     }
 
-    public function myRecords(Request $request)
+    public function myRecords(Request $request): JsonResponse
     {
-        $agent = auth()->user();
-        $records = Registration::where('registered_by', $agent->id)
+        $agent = $request->user();
+
+        if (!$agent instanceof User) {
+            abort(401, 'Unauthenticated.');
+        }
+
+        $records = Registration::query()
+            ->where('registered_by', $agent->id)
             ->active()
-            ->orderBy('registered_at', 'desc')
+            ->latest('registered_at')
             ->paginate(20);
 
         return response()->json($records);
@@ -227,9 +239,15 @@ class RegistrationController extends Controller
     private function applyScope($query, array $scope)
     {
         switch ($scope['type'] ?? 'all') {
-            case 'lga': $query->where('lga_id', $scope['lga_id']); break;
-            case 'ward': $query->where('ward_id', $scope['ward_id']); break;
-            case 'agent': $query->where('registered_by', $scope['registered_by']); break;
+            case 'lga':
+                $query->where('lga_id', $scope['lga_id']);
+                break;
+            case 'ward':
+                $query->where('ward_id', $scope['ward_id']);
+                break;
+            case 'agent':
+                $query->where('registered_by', $scope['registered_by']);
+                break;
         }
     }
 
