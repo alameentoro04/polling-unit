@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AgentAssignment;
 use App\Models\PollingUnit;
 use Illuminate\Http\Request;
 
@@ -14,6 +15,7 @@ class MapController extends Controller
 
         $query = PollingUnit::query()
             ->with(['ward.lga'])
+            ->withCount(['registrations as active_registrations_count' => fn($q) => $q->active()])
             ->whereNotNull('latitude')
             ->whereNotNull('longitude');
 
@@ -36,36 +38,19 @@ class MapController extends Controller
                 break;
         }
 
-        // Filter by status
-        if ($request->has('status')) {
-            $status = $request->status;
-            $query->withCount(['registrations as reg_count' => fn($q) => $q->active()]);
-
-            $pollingUnits = $query->get()->filter(function ($pu) use ($status) {
-                $count = $pu->reg_count ?? 0;
-                $target = $pu->target ?? 10;
-                return match($status) {
-                    'not_started' => $count === 0,
-                    'in_progress' => $count > 0 && $count < $target,
-                    'completed' => $count >= $target,
-                    default => true,
-                };
-            })->values();
-        } else {
-            $pollingUnits = $query->get();
-        }
-
-        return response()->json($pollingUnits->map(function ($pu) {
-            $registered = $pu->registrations()->whereNull('deleted_at')->count();
-            $target = $pu->target ?? 10;
+ 
+        $pollingUnits = $query->get()->map(function ($pu) {
+            $registered = $pu->active_registrations_count;
+            $target = $pu->target_count ?: 10;
             $status = $registered === 0 ? 'not_started' : ($registered >= $target ? 'completed' : 'in_progress');
 
             return [
                 'id' => $pu->id,
                 'code' => $pu->code,
                 'name' => $pu->name,
-                'latitude' => (float)$pu->latitude,
-                'longitude' => (float)$pu->longitude,
+                'latitude' => (float) $pu->latitude,
+                'longitude' => (float) $pu->longitude,
+                'is_location_precise' => (bool) $pu->is_location_precise,
                 'lga' => $pu->ward?->lga?->name,
                 'ward' => $pu->ward?->name,
                 'target' => $target,
@@ -73,28 +58,53 @@ class MapController extends Controller
                 'completion' => $target > 0 ? round(($registered / $target) * 100, 2) : 0,
                 'status' => $status,
             ];
-        }));
+        });
+
+        if ($request->filled('status')) {
+            $status = $request->string('status')->toString();
+            $pollingUnits = $pollingUnits->where('status', $status)->values();
+        }
+
+        return response()->json($pollingUnits);
     }
 
     public function pollingUnitDetail($id)
     {
-        $pu = PollingUnit::with(['ward.lga', 'registrations' => function($q) {
+        $pu = PollingUnit::with(['ward.lga', 'registrations' => function ($q) {
             $q->active()->orderBy('registered_at', 'desc')->limit(10);
-        }])->findOrFail($id);
+        }])
+            ->withCount(['registrations as active_registrations_count' => fn($q) => $q->active()])
+            ->findOrFail($id);
 
-        $registered = $pu->registrations()->whereNull('deleted_at')->count();
+        // Read the current agent from the assignment history table rather
+        // than the denormalized user column, so the "since" date reflects
+        // the actual assignment date, not the agent's account-creation date.
+        $currentAssignment = AgentAssignment::with('user')
+            ->where('polling_unit_id', $pu->id)
+            ->where('is_current', true)
+            ->latest('assigned_at')
+            ->first();
+
+        $registered = $pu->active_registrations_count;
+        $target = $pu->target_count ?: 10;
 
         return response()->json([
             'id' => $pu->id,
             'code' => $pu->code,
             'name' => $pu->name,
-            'latitude' => (float)$pu->latitude,
-            'longitude' => (float)$pu->longitude,
+            'location' => $pu->location,
+            'latitude' => (float) $pu->latitude,
+            'longitude' => (float) $pu->longitude,
+            'is_location_precise' => (bool) $pu->is_location_precise,
             'lga' => $pu->ward?->lga?->name,
             'ward' => $pu->ward?->name,
-            'target' => $pu->target ?? 10,
+            'target' => $target,
             'registered' => $registered,
-            'completion' => ($pu->target ?? 10) > 0 ? round(($registered / ($pu->target ?? 10)) * 100, 2) : 0,
+            'completion' => $target > 0 ? round(($registered / $target) * 100, 2) : 0,
+            'current_agent' => $currentAssignment ? [
+                'name' => $currentAssignment->user?->full_name,
+                'assigned_at' => $currentAssignment->assigned_at,
+            ] : null,
             'recent_registrations' => $pu->registrations,
         ]);
     }

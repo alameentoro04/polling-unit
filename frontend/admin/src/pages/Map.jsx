@@ -1,8 +1,12 @@
-import { useEffect, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { useEffect, useRef, useState } from "react";
+import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import { useAuth } from "../hooks/useAuth";
+import { useLocations } from "../hooks/useLocations";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import "leaflet.markercluster/dist/MarkerCluster.css";
+import "leaflet.markercluster/dist/MarkerCluster.Default.css";
+import "leaflet.markercluster";
 
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
@@ -14,23 +18,6 @@ let DefaultIcon = L.icon({
   iconAnchor: [12, 41],
 });
 L.Marker.prototype.options.icon = DefaultIcon;
-
-// Custom colored markers
-const createColoredIcon = (color) =>
-  L.divIcon({
-    className: "custom-marker",
-    html: `<div style="
-    width: 24px; height: 24px; 
-    background: ${color}; 
-    border-radius: 50%; 
-    border: 3px solid white; 
-    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-    display: flex; align-items: center; justify-content: center;
-  "></div>`,
-    iconSize: [24, 24],
-    iconAnchor: [12, 12],
-    popupAnchor: [0, -12],
-  });
 
 const statusColors = {
   not_started: "#9ca3af",
@@ -44,22 +31,108 @@ const statusLabels = {
   completed: "Target Reached",
 };
 
-// Map bounds fitter
-function MapBounds({ points }) {
+const escapeHtml = (str) =>
+  String(str ?? "").replace(
+    /[&<>"']/g,
+    (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[
+        c
+      ])
+  );
+
+function coloredDivIcon(color) {
+  return L.divIcon({
+    className: "custom-marker",
+    html: `<div style="
+      width: 22px; height: 22px;
+      background: ${color};
+      border-radius: 50%;
+      border: 3px solid white;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    "></div>`,
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+    popupAnchor: [0, -11],
+  });
+}
+
+function ClusteredMarkers({ points, onSelect }) {
   const map = useMap();
+  const clusterRef = useRef(null);
+
   useEffect(() => {
-    if (points.length > 0) {
+    const clusterGroup = L.markerClusterGroup({
+      chunkedLoading: true,
+      maxClusterRadius: 60,
+      spiderfyOnMaxZoom: true,
+    });
+    clusterRef.current = clusterGroup;
+    map.addLayer(clusterGroup);
+    return () => {
+      map.removeLayer(clusterGroup);
+    };
+  }, [map]);
+
+  useEffect(() => {
+    const clusterGroup = clusterRef.current;
+    if (!clusterGroup) return;
+
+    clusterGroup.clearLayers();
+
+    const markers = points.map((pu) => {
+      const marker = L.marker([pu.latitude, pu.longitude], {
+        icon: coloredDivIcon(
+          statusColors[pu.status] || statusColors.not_started
+        ),
+      });
+
+      const approxNote = pu.is_location_precise
+        ? ""
+        : `<div style="color:#b45309;font-size:11px;margin-top:2px;">Approximate location — not geocoded in source data</div>`;
+
+      marker.bindPopup(`
+        <div style="min-width:200px">
+          <div style="font-weight:600;font-size:13px;">${escapeHtml(
+            pu.name
+          )}</div>
+          <div style="font-size:11px;color:#6b7280;">${escapeHtml(
+            pu.code
+          )}</div>
+          <div style="font-size:11px;color:#6b7280;">${escapeHtml(
+            pu.ward
+          )}, ${escapeHtml(pu.lga)}</div>
+          <div style="margin-top:6px;display:flex;justify-content:space-between;font-size:11px;">
+            <span>Target: ${pu.target}</span>
+            <span>Registered: ${pu.registered}</span>
+          </div>
+          <div style="margin-top:4px;font-size:11px;font-weight:600;">${
+            pu.completion
+          }% — ${statusLabels[pu.status] || ""}</div>
+          ${approxNote}
+        </div>
+      `);
+
+      marker.on("click", () => onSelect(pu.id));
+      return marker;
+    });
+
+    clusterGroup.addLayers(markers);
+
+    if (markers.length > 0) {
       const bounds = L.latLngBounds(
         points.map((p) => [p.latitude, p.longitude])
       );
       map.fitBounds(bounds, { padding: [50, 50] });
     }
-  }, [points, map]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [points]);
+
   return null;
 }
 
 export default function Map() {
   const { api } = useAuth();
+  const { lgas } = useLocations();
   const [pollingUnits, setPollingUnits] = useState([]);
   const [selectedPU, setSelectedPU] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -68,6 +141,7 @@ export default function Map() {
 
   useEffect(() => {
     fetchPollingUnits();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter, lgaFilter]);
 
   const fetchPollingUnits = async () => {
@@ -95,18 +169,25 @@ export default function Map() {
     }
   };
 
-  const center =
-    pollingUnits.length > 0
-      ? [pollingUnits[0].latitude, pollingUnits[0].longitude]
-      : [10.3158, 9.8442]; // Bauchi center
-
-  const filteredPUs = pollingUnits;
+  const center = [10.3158, 9.8442]; // Bauchi State center — MapBounds re-fits once data loads
 
   return (
     <div>
       <h1 className="text-lg font-bold mb-4">Polling Unit Map</h1>
 
       <div className="filters-bar mb-4">
+        <select
+          className="select"
+          value={lgaFilter}
+          onChange={(e) => setLgaFilter(e.target.value)}
+        >
+          <option value="">All LGAs</option>
+          {lgas.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.name}
+            </option>
+          ))}
+        </select>
         <select
           className="select"
           value={filter}
@@ -120,6 +201,11 @@ export default function Map() {
         <button className="btn btn-secondary" onClick={fetchPollingUnits}>
           Refresh
         </button>
+        <div className="text-xs text-gray-500 flex items-center">
+          {loading
+            ? "Loading…"
+            : `${pollingUnits.length.toLocaleString()} polling units`}
+        </div>
         <div className="flex gap-3 items-center ml-auto">
           <div className="flex items-center gap-1 text-xs">
             <span
@@ -166,54 +252,17 @@ export default function Map() {
             <div className="map-container" style={{ height: "600px" }}>
               <MapContainer
                 center={center}
-                zoom={10}
+                zoom={9}
                 style={{ height: "100%", width: "100%" }}
               >
                 <TileLayer
                   attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
-                <MapBounds points={filteredPUs} />
-                {filteredPUs.map((pu) => (
-                  <Marker
-                    key={pu.id}
-                    position={[pu.latitude, pu.longitude]}
-                    icon={createColoredIcon(statusColors[pu.status])}
-                    eventHandlers={{
-                      click: () => fetchPUDetail(pu.id),
-                    }}
-                  >
-                    <Popup>
-                      <div style={{ minWidth: 200 }}>
-                        <div className="font-semibold text-sm">{pu.name}</div>
-                        <div className="text-xs text-gray-500">{pu.code}</div>
-                        <div className="text-xs text-gray-500">
-                          {pu.ward}, {pu.lga}
-                        </div>
-                        <div className="mt-2 flex justify-between text-xs">
-                          <span>Target: {pu.target}</span>
-                          <span>Registered: {pu.registered}</span>
-                        </div>
-                        <div className="mt-1">
-                          <span
-                            className={`badge badge-${
-                              pu.status === "completed"
-                                ? "green"
-                                : pu.status === "in_progress"
-                                ? "yellow"
-                                : "gray"
-                            }`}
-                          >
-                            {statusLabels[pu.status]}
-                          </span>
-                        </div>
-                        <div className="mt-2 text-xs font-semibold text-primary">
-                          {pu.completion}%
-                        </div>
-                      </div>
-                    </Popup>
-                  </Marker>
-                ))}
+                <ClusteredMarkers
+                  points={pollingUnits}
+                  onSelect={fetchPUDetail}
+                />
               </MapContainer>
             </div>
           </div>
@@ -238,6 +287,11 @@ export default function Map() {
                 <div className="text-xs text-gray-500">
                   {selectedPU.location}
                 </div>
+                {!selectedPU.is_location_precise && (
+                  <div className="text-xs mt-1" style={{ color: "#b45309" }}>
+                    Approximate location — not geocoded in source data
+                  </div>
+                )}
               </div>
 
               <div className="mb-3">

@@ -134,6 +134,8 @@ class AdminController extends Controller
             'is_current' => true,
         ]);
 
+        $user->update(['assigned_polling_unit_id' => $pu->id]);
+
         AuditService::logAgentAssigned($assignment, auth()->id());
 
         return response()->json($assignment, 201);

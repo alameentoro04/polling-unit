@@ -10,8 +10,14 @@ class PollingUnit extends Model
     use HasFactory;
 
     protected $fillable = [
-        'name', 'code', 'ward_id', 'lga_id',
-        'latitude', 'longitude', 'voter_count', 'target'
+        'name', 'code', 'ward_id', 'location',
+        'latitude', 'longitude', 'is_location_precise', 'target_count',
+    ];
+
+    protected $casts = [
+        'latitude' => 'float',
+        'longitude' => 'float',
+        'is_location_precise' => 'boolean',
     ];
 
     public function ward()
@@ -19,10 +25,7 @@ class PollingUnit extends Model
         return $this->belongsTo(Ward::class);
     }
 
-    public function lga()
-    {
-        return $this->belongsTo(Lga::class);
-    }
+
 
     public function registrations()
     {

@@ -158,47 +158,59 @@ class DashboardController extends Controller
     public function agentPerformance(Request $request)
     {
         $scope = $request->attributes->get('data_scope');
+        $lgaId = $request->input('lga_id');
 
-                $query = User::query()
+        $query = User::query()
             ->whereHas('role', fn($q) => $q->where('name', 'agent'))
             ->withCount(['registrations as registered_count' => function ($q) {
                 $q->active();
             }])
-            ->with('assignedPollingUnit')
-            ->get()
-            ->map(function ($agent) {
-                return [
-                    'id' => $agent->id,
-                    'name' => $agent->full_name,
-                    'polling_unit' => $agent->assignedPollingUnit?->name,
-                    'registered' => $agent->registered_count,
-                ];
-            });
+            ->with('assignedPollingUnit.ward.lga');
 
-
-        if ($scope['type'] === 'agent') {
-            $query = $query->where('id', $scope['registered_by']);
+        if ($lgaId) {
+            $query->whereHas('assignedPollingUnit.ward', fn($q) => $q->where('lga_id', $lgaId));
         }
 
-        return response()->json($query->values());
+        if (($scope['type'] ?? 'all') === 'agent') {
+            $query->where('id', $scope['registered_by']);
+        }
+
+        $agents = $query->get()->map(function ($agent) {
+            $target = $agent->assignedPollingUnit?->target_count ?: 10;
+            return [
+                'id' => $agent->id,
+                'name' => $agent->full_name,
+                'polling_unit' => $agent->assignedPollingUnit?->name,
+                'lga' => $agent->assignedPollingUnit?->ward?->lga?->name,
+                'registered' => $agent->registered_count,
+                'target' => $target,
+            ];
+        });
+
+        return response()->json($agents->values());
     }
 
     public function completionDistribution(Request $request)
     {
         $scope = $request->attributes->get('data_scope');
 
-        $puQuery = PollingUnit::query();
+        $puQuery = PollingUnit::query()
+            ->withCount(['registrations as active_registrations_count' => fn($q) => $q->active()]);
         $this->applyScopeToPu($puQuery, $scope);
 
-        $pollingUnits = $puQuery->get();
+        // Pull counts in one query instead of looping and issuing a
+        // separate registrations()->count() query per polling unit — with
+        // the real ~4,000-unit Bauchi dataset the old loop made this
+        // endpoint take seconds and hammered the DB on every dashboard poll.
         $notStarted = 0;
         $inProgress = 0;
         $completed = 0;
 
-        foreach ($pollingUnits as $pu) {
-            $count = $pu->activeRegistrationsCount();
+        foreach ($puQuery->get(['id', 'target_count']) as $pu) {
+            $count = $pu->active_registrations_count;
+            $target = $pu->target_count ?: 10;
             if ($count === 0) $notStarted++;
-            elseif ($count >= $pu->target_count) $completed++;
+            elseif ($count >= $target) $completed++;
             else $inProgress++;
         }
 

@@ -156,6 +156,9 @@ class AnalyticsController extends Controller
             ->orderByDesc('count')
             ->first();
 
+
+        $topAgent = ($topAgent && $topAgent->count > 0) ? $topAgent : null;
+
         return response()->json([
             'total_registrations' => $total,
             'today' => $today,
