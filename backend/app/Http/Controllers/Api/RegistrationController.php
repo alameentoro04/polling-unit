@@ -21,7 +21,15 @@ class RegistrationController extends Controller
         }
 
         $puId = $request->attributes->get('agent_polling_unit_id');
-        $pu = \App\Models\PollingUnit::with('ward.lga')->find($puId);
+        $pu = $puId ? \App\Models\PollingUnit::with('ward.lga')->find($puId) : null;
+
+        if (!$pu) {
+            return response()->json([
+                'polling_unit' => null,
+                'progress' => ['target' => 0, 'registered' => 0, 'completion' => 0],
+                'sync' => ['pending' => 0, 'synced' => 0, 'conflicts' => 0],
+            ]);
+        }
 
         $registered = Registration::where('registered_by', $agent->id)
             ->active()
@@ -107,7 +115,7 @@ class RegistrationController extends Controller
             'gps_latitude' => 'nullable|numeric',
             'gps_longitude' => 'nullable|numeric',
             'gps_accuracy' => 'nullable|numeric',
-            'dynamic_data' => 'nullable]array',
+            'dynamic_data' => 'nullable|array',
 
         ]);
 
@@ -153,7 +161,6 @@ class RegistrationController extends Controller
 
         $this->applyScope($query, $scope);
 
- 
         if ($request->filled('lga_id')) $query->where('lga_id', $request->lga_id);
         if ($request->filled('ward_id')) $query->where('ward_id', $request->ward_id);
         if ($request->filled('polling_unit_id')) $query->where('polling_unit_id', $request->polling_unit_id);

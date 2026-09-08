@@ -29,7 +29,6 @@ class SyncService
             ];
         }
 
-        // Create or update sync queue record
         $syncQueue = SyncQueue::updateOrCreate(
             ['client_id' => $clientId],
             [
@@ -87,6 +86,10 @@ class SyncService
                 'date_of_birth' => $payload['date_of_birth'] ?? null,
                 'gender' => $payload['gender'] ?? null,
                 'photograph_url' => $payload['photograph_url'] ?? null,
+                'gps_latitude' => $payload['gps_latitude'] ?? null,
+                'gps_longitude' => $payload['gps_longitude'] ?? null,
+                'gps_accuracy' => $payload['gps_accuracy'] ?? null,
+                'dynamic_data' => $payload['dynamic_data'] ?? null,
                 'polling_unit_id' => $pollingUnit->id,
                 'ward_id' => $pollingUnit->ward_id,
                 'lga_id' => $pollingUnit->ward->lga_id,
@@ -122,6 +125,10 @@ class SyncService
                 'date_of_birth' => $payload['date_of_birth'] ?? null,
                 'gender' => $payload['gender'] ?? null,
                 'photograph_url' => $payload['photograph_url'] ?? null,
+                'gps_latitude' => $payload['gps_latitude'] ?? null,
+                'gps_longitude' => $payload['gps_longitude'] ?? null,
+                'gps_accuracy' => $payload['gps_accuracy'] ?? null,
+                'dynamic_data' => $payload['dynamic_data'] ?? null,
                 'polling_unit_id' => $pollingUnit->id,
                 'ward_id' => $pollingUnit->ward_id,
                 'lga_id' => $pollingUnit->ward->lga_id,
@@ -144,6 +151,10 @@ class SyncService
                     'date_of_birth' => $payload['date_of_birth'] ?? null,
                     'gender' => $payload['gender'] ?? null,
                     'photograph_url' => $payload['photograph_url'] ?? null,
+                    'gps_latitude' => $payload['gps_latitude'] ?? null,
+                    'gps_longitude' => $payload['gps_longitude'] ?? null,
+                    'gps_accuracy' => $payload['gps_accuracy'] ?? null,
+                    'dynamic_data' => $payload['dynamic_data'] ?? null,
                     'polling_unit_id' => $pollingUnit->id,
                     'ward_id' => $pollingUnit->ward_id,
                     'lga_id' => $pollingUnit->ward->lga_id,

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { storeRegistration } from "../services/db";
+import { storeRegistration, findLocalByPvc } from "../services/db";
 import { useNetwork } from "../hooks/useNetwork";
 import { api } from "../hooks/useAuth";
 import { compressImage } from "../services/image";
@@ -21,12 +21,10 @@ export default function Register() {
   const [duplicateWarning, setDuplicateWarning] = useState("");
   const [gps, setGps] = useState(null);
 
-  // Dynamic Fields State
   const [formFields, setFormFields] = useState([]);
   const [dynamicData, setDynamicData] = useState({});
 
   useEffect(() => {
-    // Load form fields from API or cache
     api
       .get("/form-fields")
       .then((res) => setFormFields(res.data))
@@ -63,15 +61,23 @@ export default function Register() {
   };
 
   const checkDuplicate = async (pvc) => {
-    if (!pvc || pvc.length < 5 || !isOnline) return;
+    if (!pvc || pvc.length < 5) return;
+
+    const localMatch = await findLocalByPvc(pvc);
+    if (localMatch) {
+      setDuplicateWarning(
+        "⚠️ You already registered this PVC on this device (not yet synced)."
+      );
+      return;
+    }
+
+    if (!isOnline) return;
     try {
       const res = await api.get(`/agent/check-pvc`, { params: { pvc } });
       if (res.data.exists) {
         setDuplicateWarning("⚠️ This PVC may already exist. Please verify.");
       }
-    } catch (e) {
-      // Ignore network errors
-    }
+    } catch (e) {}
   };
 
   const validate = () => {

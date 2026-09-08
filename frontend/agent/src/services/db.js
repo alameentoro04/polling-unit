@@ -9,6 +9,14 @@ db.version(1).stores({
   metadata: "key",
 });
 
+export async function findLocalByPvc(pvc) {
+  return await db.registrations
+    .where("pvc_number")
+    .equals(pvc)
+    .and((r) => r.sync_status !== "conflict")
+    .first();
+}
+
 export async function storeRegistration(data) {
   const clientId = crypto.randomUUID();
   const record = {
