@@ -19,7 +19,6 @@ class MapController extends Controller
             ->whereNotNull('latitude')
             ->whereNotNull('longitude');
 
-        // Apply scope — ONLY if the value is not empty
         switch ($scope['type'] ?? 'all') {
             case 'lga':
                 if (!empty($scope['lga_id'])) {
@@ -38,7 +37,16 @@ class MapController extends Controller
                 break;
         }
 
- 
+        if ($request->filled('lga_id')) {
+            $query->whereHas('ward', fn($q) => $q->where('lga_id', $request->input('lga_id')));
+        }
+        if ($request->filled('ward_id')) {
+            $query->where('ward_id', $request->input('ward_id'));
+        }
+        if ($request->filled('polling_unit_id')) {
+            $query->where('id', $request->input('polling_unit_id'));
+        }
+
         $pollingUnits = $query->get()->map(function ($pu) {
             $registered = $pu->active_registrations_count;
             $target = $pu->target_count ?: 10;
@@ -76,9 +84,7 @@ class MapController extends Controller
             ->withCount(['registrations as active_registrations_count' => fn($q) => $q->active()])
             ->findOrFail($id);
 
-        // Read the current agent from the assignment history table rather
-        // than the denormalized user column, so the "since" date reflects
-        // the actual assignment date, not the agent's account-creation date.
+
         $currentAssignment = AgentAssignment::with('user')
             ->where('polling_unit_id', $pu->id)
             ->where('is_current', true)

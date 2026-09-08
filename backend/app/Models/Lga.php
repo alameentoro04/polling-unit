@@ -23,7 +23,7 @@ class Lga extends Model
 
     public function pollingUnits()
     {
-        return $this->hasMany(PollingUnit::class);
+        return $this->hasManyThrough(PollingUnit::class, Ward::class, 'lga_id', 'ward_id');
     }
 
     public function registrations()

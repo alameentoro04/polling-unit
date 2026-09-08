@@ -124,7 +124,6 @@ function ClusteredMarkers({ points, onSelect }) {
       );
       map.fitBounds(bounds, { padding: [50, 50] });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [points]);
 
   return null;
@@ -132,17 +131,37 @@ function ClusteredMarkers({ points, onSelect }) {
 
 export default function Map() {
   const { api } = useAuth();
-  const { lgas } = useLocations();
+  const {
+    lgas,
+    wards,
+    pollingUnits: puOptions,
+    loadWards,
+    loadPollingUnits,
+  } = useLocations();
   const [pollingUnits, setPollingUnits] = useState([]);
   const [selectedPU, setSelectedPU] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
   const [lgaFilter, setLgaFilter] = useState("");
+  const [wardFilter, setWardFilter] = useState("");
+  const [puFilter, setPuFilter] = useState("");
 
   useEffect(() => {
     fetchPollingUnits();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, lgaFilter]);
+  }, [filter, lgaFilter, wardFilter, puFilter]);
+
+  const handleLgaChange = (value) => {
+    setLgaFilter(value);
+    setWardFilter("");
+    setPuFilter("");
+    loadWards(value);
+  };
+
+  const handleWardChange = (value) => {
+    setWardFilter(value);
+    setPuFilter("");
+    loadPollingUnits(value);
+  };
 
   const fetchPollingUnits = async () => {
     setLoading(true);
@@ -150,6 +169,8 @@ export default function Map() {
       const params = new URLSearchParams();
       if (filter !== "all") params.append("status", filter);
       if (lgaFilter) params.append("lga_id", lgaFilter);
+      if (wardFilter) params.append("ward_id", wardFilter);
+      if (puFilter) params.append("polling_unit_id", puFilter);
 
       const res = await api.get(`/map/polling-units?${params}`);
       setPollingUnits(res.data);
@@ -179,12 +200,38 @@ export default function Map() {
         <select
           className="select"
           value={lgaFilter}
-          onChange={(e) => setLgaFilter(e.target.value)}
+          onChange={(e) => handleLgaChange(e.target.value)}
         >
           <option value="">All LGAs</option>
           {lgas.map((l) => (
             <option key={l.id} value={l.id}>
               {l.name}
+            </option>
+          ))}
+        </select>
+        <select
+          className="select"
+          value={wardFilter}
+          onChange={(e) => handleWardChange(e.target.value)}
+          disabled={!lgaFilter}
+        >
+          <option value="">All Wards</option>
+          {wards.map((w) => (
+            <option key={w.id} value={w.id}>
+              {w.name}
+            </option>
+          ))}
+        </select>
+        <select
+          className="select"
+          value={puFilter}
+          onChange={(e) => setPuFilter(e.target.value)}
+          disabled={!wardFilter}
+        >
+          <option value="">All Polling Units</option>
+          {puOptions.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
             </option>
           ))}
         </select>
