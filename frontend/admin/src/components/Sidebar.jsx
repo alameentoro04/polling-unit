@@ -1,8 +1,8 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import DarkModeToggle from "./DarkModeToggle";
 
-export default function Sidebar() {
+export default function Sidebar({ open, onClose }) {
   const { user, logout } = useAuth();
   const isAdmin = user?.role === "admin";
 
@@ -25,49 +25,54 @@ export default function Sidebar() {
   ];
 
   return (
-    <aside className="sidebar">
-      <div className="sidebar-header">
-        <div className="sidebar-title">Situation Room</div>
-        <div className="sidebar-subtitle">Bauchi State PU Monitoring</div>
-        <DarkModeToggle />
-      </div>
+    <>
+      {open && <div className="sidebar-backdrop" onClick={onClose} />}
 
-      <nav className="sidebar-nav">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            className={({ isActive }) =>
-              `sidebar-nav-item ${isActive ? "active" : ""}`
-            }
-          >
-            <span>{item.icon}</span>
-            <span>{item.label}</span>
-          </NavLink>
-        ))}
-      </nav>
-
-      <div className="sidebar-footer">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="font-semibold text-xs">{user?.full_name}</div>
-            <div className="text-xs opacity-60 capitalize">
-              {user?.role?.replace("_", " ")}
-            </div>
-          </div>
-          <button
-            onClick={logout}
-            className="btn btn-sm btn-secondary"
-            style={{
-              color: "white",
-              background: "rgba(255,255,255,0.1)",
-              border: "none",
-            }}
-          >
-            Logout
-          </button>
+      <aside className={`sidebar ${open ? "sidebar-open" : ""}`}>
+        <div className="sidebar-header">
+          <div className="sidebar-title">Situation Room</div>
+          <div className="sidebar-subtitle">Bauchi State PU Monitoring</div>
+          <DarkModeToggle />
         </div>
-      </div>
-    </aside>
+
+        <nav className="sidebar-nav">
+          {navItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              onClick={onClose}
+              className={({ isActive }) =>
+                `sidebar-nav-item ${isActive ? "active" : ""}`
+              }
+            >
+              <span>{item.icon}</span>
+              <span>{item.label}</span>
+            </NavLink>
+          ))}
+        </nav>
+
+        <div className="sidebar-footer">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-semibold text-xs">{user?.full_name}</div>
+              <div className="text-xs opacity-60 capitalize">
+                {user?.role?.replace("_", " ")}
+              </div>
+            </div>
+            <button
+              onClick={logout}
+              className="btn btn-sm btn-secondary"
+              style={{
+                color: "white",
+                background: "rgba(255,255,255,0.1)",
+                border: "none",
+              }}
+            >
+              Logout
+            </button>
+          </div>
+        </div>
+      </aside>
+    </>
   );
 }

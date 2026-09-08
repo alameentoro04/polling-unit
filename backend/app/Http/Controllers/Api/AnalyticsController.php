@@ -91,12 +91,14 @@ class AnalyticsController extends Controller
         $this->applyScope($query, $scope);
 
         $data = $query->get();
-        $agents = User::whereHas('role', fn($q) => $q->where('name', 'agent'))
-            ->pluck('full_name', 'id');
-
         $dates = collect(range(0, $days - 1))->map(fn($d) => now()->subDays($d)->format('Y-m-d'))->reverse()->values();
 
-        $result = $agents->map(function ($name, $agentId) use ($data, $dates) {
+        $totalsByAgent = $data->groupBy('registered_by')->map->sum('count');
+        $topAgentIds = $totalsByAgent->sortDesc()->keys()->take(15);
+
+        $agents = User::whereIn('id', $topAgentIds)->pluck('full_name', 'id');
+
+        $result = $agents->map(function ($name, $agentId) use ($data, $dates, $totalsByAgent) {
             $agentData = $data->where('registered_by', $agentId)->keyBy('date');
             return [
                 'agent_id' => $agentId,
@@ -105,7 +107,7 @@ class AnalyticsController extends Controller
                     'date' => $date,
                     'count' => $agentData[$date]->count ?? 0,
                 ])->toArray(),
-                'total' => $agentData->sum('count'),
+                'total' => $totalsByAgent[$agentId] ?? 0,
             ];
         })->values()->sortByDesc('total')->values();
 
@@ -155,7 +157,6 @@ class AnalyticsController extends Controller
             ->withCount(['registrations as count' => fn($q) => $q->active()->whereDate('registered_at', today())])
             ->orderByDesc('count')
             ->first();
-
 
         $topAgent = ($topAgent && $topAgent->count > 0) ? $topAgent : null;
 

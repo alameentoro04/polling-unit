@@ -1,26 +1,44 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { useState, lazy, Suspense } from "react";
 import { useAuth } from "./hooks/useAuth";
 import { useToast } from "./hooks/useToast";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
-import Map from "./pages/Map";
-import Registrations from "./pages/Registrations";
-import Import from "./pages/Import";
-import Users from "./pages/Users";
-import AuditLogs from "./pages/AuditLogs";
-import SyncConflicts from "./pages/SyncConflicts";
 import Sidebar from "./components/Sidebar";
-import AgentPerformance from "./pages/AgentPerformance";
 import Toast from "./components/Toast";
 import ErrorBoundary from "./components/ErrorBoundary";
-import Settings from "./pages/Settings";
-import FormBuilder from "./pages/FormBuilder";
-import Analytics from "./pages/Analytics";
+
+const Map = lazy(() => import("./pages/Map"));
+const Registrations = lazy(() => import("./pages/Registrations"));
+const Import = lazy(() => import("./pages/Import"));
+const Users = lazy(() => import("./pages/Users"));
+const AuditLogs = lazy(() => import("./pages/AuditLogs"));
+const SyncConflicts = lazy(() => import("./pages/SyncConflicts"));
+const AgentPerformance = lazy(() => import("./pages/AgentPerformance"));
+const Settings = lazy(() => import("./pages/Settings"));
+const FormBuilder = lazy(() => import("./pages/FormBuilder"));
+const Analytics = lazy(() => import("./pages/Analytics"));
+
+function RouteFallback() {
+  return <div className="text-center mt-4 text-gray-500">Loading…</div>;
+}
 
 function AppLayout({ children }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
     <div className="app-layout">
-      <Sidebar />
+      <div className="mobile-topbar">
+        <button
+          className="mobile-menu-btn"
+          onClick={() => setSidebarOpen(true)}
+          aria-label="Open menu"
+        >
+          ☰
+        </button>
+        <span className="mobile-topbar-title">Situation Room</span>
+      </div>
+      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <main className="main-content">{children}</main>
     </div>
   );
@@ -56,98 +74,100 @@ function App() {
         />
       ))}
       <AppLayout>
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <ErrorBoundary>
-                <Dashboard />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path="/map"
-            element={
-              <ErrorBoundary>
-                <Map />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path="/registrations"
-            element={
-              <ErrorBoundary>
-                <Registrations />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path="/import"
-            element={
-              isAdmin ? (
+        <Suspense fallback={<RouteFallback />}>
+          <Routes>
+            <Route
+              path="/"
+              element={
                 <ErrorBoundary>
-                  <Import />
+                  <Dashboard />
                 </ErrorBoundary>
-              ) : (
-                <Navigate to="/" />
-              )
-            }
-          />
-          <Route
-            path="/conflicts"
-            element={
-              isAdmin ? (
+              }
+            />
+            <Route
+              path="/map"
+              element={
                 <ErrorBoundary>
-                  <SyncConflicts />
+                  <Map />
                 </ErrorBoundary>
-              ) : (
-                <Navigate to="/" />
-              )
-            }
-          />
-          <Route
-            path="/users"
-            element={
-              isAdmin ? (
+              }
+            />
+            <Route
+              path="/registrations"
+              element={
                 <ErrorBoundary>
-                  <Users />
+                  <Registrations />
                 </ErrorBoundary>
-              ) : (
-                <Navigate to="/" />
-              )
-            }
-          />
-          <Route path="/analytics" element={<Analytics />} />
-          <Route
-            path="/settings"
-            element={isAdmin ? <Settings /> : <Navigate to="/" />}
-          />
-          <Route
-            path="/form-builder"
-            element={isAdmin ? <FormBuilder /> : <Navigate to="/" />}
-          />
-          <Route
-            path="/agents"
-            element={
-              <ErrorBoundary>
-                <AgentPerformance />
-              </ErrorBoundary>
-            }
-          />
-          <Route
-            path="/audit-logs"
-            element={
-              isAdmin ? (
+              }
+            />
+            <Route
+              path="/import"
+              element={
+                isAdmin ? (
+                  <ErrorBoundary>
+                    <Import />
+                  </ErrorBoundary>
+                ) : (
+                  <Navigate to="/" />
+                )
+              }
+            />
+            <Route
+              path="/conflicts"
+              element={
+                isAdmin ? (
+                  <ErrorBoundary>
+                    <SyncConflicts />
+                  </ErrorBoundary>
+                ) : (
+                  <Navigate to="/" />
+                )
+              }
+            />
+            <Route
+              path="/users"
+              element={
+                isAdmin ? (
+                  <ErrorBoundary>
+                    <Users />
+                  </ErrorBoundary>
+                ) : (
+                  <Navigate to="/" />
+                )
+              }
+            />
+            <Route path="/analytics" element={<Analytics />} />
+            <Route
+              path="/settings"
+              element={isAdmin ? <Settings /> : <Navigate to="/" />}
+            />
+            <Route
+              path="/form-builder"
+              element={isAdmin ? <FormBuilder /> : <Navigate to="/" />}
+            />
+            <Route
+              path="/agents"
+              element={
                 <ErrorBoundary>
-                  <AuditLogs />
+                  <AgentPerformance />
                 </ErrorBoundary>
-              ) : (
-                <Navigate to="/" />
-              )
-            }
-          />
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
+              }
+            />
+            <Route
+              path="/audit-logs"
+              element={
+                isAdmin ? (
+                  <ErrorBoundary>
+                    <AuditLogs />
+                  </ErrorBoundary>
+                ) : (
+                  <Navigate to="/" />
+                )
+              }
+            />
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </Suspense>
       </AppLayout>
     </>
   );

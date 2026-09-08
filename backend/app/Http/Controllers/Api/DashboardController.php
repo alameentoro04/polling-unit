@@ -128,31 +128,32 @@ class DashboardController extends Controller
         $lgaId = $request->input('lga_id');
 
         $query = Ward::query()
+            ->with('lga')
             ->when($lgaId, fn($q) => $q->where('lga_id', $lgaId))
             ->withCount(['registrations as registered_count' => function ($q) {
                 $q->active();
             }])
-            ->withCount('pollingUnits as pu_count')
-            ->get()
-            ->map(function ($ward) {
-                $target = $ward->pu_count * 10;
-                return [
-                    'id' => $ward->id,
-                    'name' => $ward->name,
-                    'lga_name' => $ward->lga?->name,
-                    'registered' => $ward->registered_count,
-                    'target' => $target,
-                    'completion' => $target > 0 ? round(($ward->registered_count / $target) * 100, 2) : 0,
-                ];
-            });
+            ->withCount('pollingUnits as pu_count');
 
-        if ($scope['type'] === 'ward') {
-            $query = $query->where('id', $scope['ward_id']);
-        } elseif ($scope['type'] === 'lga') {
-            $query = $query->where('lga_id', $scope['lga_id']);
+        if (($scope['type'] ?? 'all') === 'ward') {
+            $query->where('id', $scope['ward_id']);
+        } elseif (($scope['type'] ?? 'all') === 'lga') {
+            $query->where('lga_id', $scope['lga_id']);
         }
 
-        return response()->json($query->values());
+        $wards = $query->get()->map(function ($ward) {
+            $target = $ward->pu_count * 10;
+            return [
+                'id' => $ward->id,
+                'name' => $ward->name,
+                'lga_name' => $ward->lga?->name,
+                'registered' => $ward->registered_count,
+                'target' => $target,
+                'completion' => $target > 0 ? round(($ward->registered_count / $target) * 100, 2) : 0,
+            ];
+        });
+
+        return response()->json($wards->values());
     }
 
     public function agentPerformance(Request $request)
@@ -198,10 +199,6 @@ class DashboardController extends Controller
             ->withCount(['registrations as active_registrations_count' => fn($q) => $q->active()]);
         $this->applyScopeToPu($puQuery, $scope);
 
-        // Pull counts in one query instead of looping and issuing a
-        // separate registrations()->count() query per polling unit — with
-        // the real ~4,000-unit Bauchi dataset the old loop made this
-        // endpoint take seconds and hammered the DB on every dashboard poll.
         $notStarted = 0;
         $inProgress = 0;
         $completed = 0;

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../hooks/useAuth";
+import SkeletonCard from "../components/SkeletonCard";
 import {
   BarChart,
   Bar,
@@ -96,7 +97,16 @@ export default function Dashboard() {
   };
 
   if (!summary)
-    return <div className="text-center mt-4">Loading dashboard...</div>;
+    return (
+      <div>
+        <h1 className="text-lg font-bold mb-4">Dashboard</h1>
+        <div className="summary-grid">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
+      </div>
+    );
 
   const completionData = [
     { name: "Not Started", value: completion.not_started || 0 },

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../hooks/useAuth";
+import SkeletonCard from "../components/SkeletonCard";
 import {
   BarChart,
   Bar,
@@ -58,7 +59,16 @@ export default function Analytics() {
   };
 
   if (loading)
-    return <div className="text-center p-4">Loading analytics...</div>;
+    return (
+      <div>
+        <h1 className="text-lg font-bold mb-4">Analytics</h1>
+        <div className="charts-grid">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
+      </div>
+    );
 
   return (
     <div>
