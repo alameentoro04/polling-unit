@@ -79,12 +79,6 @@ class RegistrationController extends Controller
         return response()->json($records);
     }
 
-    /**
-     * Lightweight PVC duplicate check for agents. Deliberately returns only
-     * a boolean, not the matching record — agents must not see other
-     * agents' records or names (spec section 3), so this can't just reuse
-     * the admin/coordinator /search endpoint.
-     */
     public function checkPvc(Request $request)
     {
         $pvc = strtoupper(trim($request->input('pvc', '')));
@@ -159,12 +153,13 @@ class RegistrationController extends Controller
 
         $this->applyScope($query, $scope);
 
-        if ($request->has('lga_id')) $query->where('lga_id', $request->lga_id);
-        if ($request->has('ward_id')) $query->where('ward_id', $request->ward_id);
-        if ($request->has('polling_unit_id')) $query->where('polling_unit_id', $request->polling_unit_id);
-        if ($request->has('agent_id')) $query->where('registered_by', $request->agent_id);
-        if ($request->has('date_from')) $query->whereDate('registered_at', '>=', $request->date_from);
-        if ($request->has('date_to')) $query->whereDate('registered_at', '<=', $request->date_to);
+ 
+        if ($request->filled('lga_id')) $query->where('lga_id', $request->lga_id);
+        if ($request->filled('ward_id')) $query->where('ward_id', $request->ward_id);
+        if ($request->filled('polling_unit_id')) $query->where('polling_unit_id', $request->polling_unit_id);
+        if ($request->filled('agent_id')) $query->where('registered_by', $request->agent_id);
+        if ($request->filled('date_from')) $query->whereDate('registered_at', '>=', $request->date_from);
+        if ($request->filled('date_to')) $query->whereDate('registered_at', '<=', $request->date_to);
 
         return response()->json($query->orderBy('registered_at', 'desc')->paginate(50));
     }

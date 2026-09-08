@@ -52,7 +52,6 @@ class ImportExportController extends Controller
             foreach ($data as $index => $row) {
                 $rowNum = $index + 2; // +2 for header row
 
-                // Validate required fields
                 $required = ['lga', 'ward', 'polling_unit_code', 'polling_unit_name'];
                 $missing = [];
                 foreach ($required as $field) {
@@ -68,7 +67,6 @@ class ImportExportController extends Controller
                     continue;
                 }
 
-                // Check for duplicate polling unit code
                 $existing = PollingUnit::where('code', $row['polling_unit_code'])->first();
                 if ($existing) {
                     $results['invalid_rows']++;
@@ -77,19 +75,16 @@ class ImportExportController extends Controller
                     continue;
                 }
 
-                // Find or create LGA
                 $lga = Lga::firstOrCreate(
                     ['name' => trim($row['lga'])],
                     ['state_id' => 1, 'code' => $this->generateLgaCode()]
                 );
 
-                // Find or create Ward
                 $ward = Ward::firstOrCreate(
                     ['name' => trim($row['ward']), 'lga_id' => $lga->id],
                     ['code' => $lga->code . '-WD' . str_pad(Ward::where('lga_id', $lga->id)->count() + 1, 2, '0', STR_PAD_LEFT)]
                 );
 
-                // Create Polling Unit
                 PollingUnit::create([
                     'ward_id' => $ward->id,
                     'code' => trim($row['polling_unit_code']),
@@ -135,13 +130,12 @@ class ImportExportController extends Controller
             ->active()
             ->with(['pollingUnit', 'ward', 'lga', 'registeredBy']);
 
-        // Apply filters
-        if ($request->has('lga_id')) $query->where('lga_id', $request->lga_id);
-        if ($request->has('ward_id')) $query->where('ward_id', $request->ward_id);
-        if ($request->has('polling_unit_id')) $query->where('polling_unit_id', $request->polling_unit_id);
-        if ($request->has('agent_id')) $query->where('registered_by', $request->agent_id);
-        if ($request->has('date_from')) $query->whereDate('registered_at', '>=', $request->date_from);
-        if ($request->has('date_to')) $query->whereDate('registered_at', '<=', $request->date_to);
+        if ($request->filled('lga_id')) $query->where('lga_id', $request->lga_id);
+        if ($request->filled('ward_id')) $query->where('ward_id', $request->ward_id);
+        if ($request->filled('polling_unit_id')) $query->where('polling_unit_id', $request->polling_unit_id);
+        if ($request->filled('agent_id')) $query->where('registered_by', $request->agent_id);
+        if ($request->filled('date_from')) $query->whereDate('registered_at', '>=', $request->date_from);
+        if ($request->filled('date_to')) $query->whereDate('registered_at', '<=', $request->date_to);
 
         $this->applyScope($query, $scope);
 
@@ -153,7 +147,6 @@ class ImportExportController extends Controller
         Storage::disk('public')->makeDirectory('exports');
         $csv = fopen(Storage::disk('public')->path($filepath), 'w');
 
-        // Headers
         fputcsv($csv, [
             'ID', 'PVC Number', 'Full Name', 'Phone Number', 'Date of Birth', 'Gender',
             'Polling Unit', 'Ward', 'LGA', 'Agent', 'Registered At', 'Sync Status'
@@ -197,7 +190,7 @@ class ImportExportController extends Controller
             $headers = fgetcsv($handle);
             if (!$headers) return [];
 
-          
+
             $headers = array_map(function($h) {
                 return strtolower(trim(str_replace(' ', '_', $h)));
             }, $headers);

@@ -190,7 +190,7 @@ export default function Map() {
     }
   };
 
-  const center = [10.3158, 9.8442]; // Bauchi State center — MapBounds re-fits once data loads
+  const center = [10.3158, 9.8442]; // Bauchi State center
 
   return (
     <div>
@@ -248,13 +248,34 @@ export default function Map() {
         <button className="btn btn-secondary" onClick={fetchPollingUnits}>
           Refresh
         </button>
-        <div className="text-xs text-gray-500 flex items-center">
+        <div
+          style={{
+            fontSize: "0.75rem",
+            color: "var(--gray-500)",
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
           {loading
             ? "Loading…"
             : `${pollingUnits.length.toLocaleString()} polling units`}
         </div>
-        <div className="flex gap-3 items-center ml-auto">
-          <div className="flex items-center gap-1 text-xs">
+        <div
+          style={{
+            display: "flex",
+            gap: "0.75rem",
+            alignItems: "center",
+            marginLeft: "auto",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.25rem",
+              fontSize: "0.75rem",
+            }}
+          >
             <span
               style={{
                 width: 12,
@@ -266,7 +287,14 @@ export default function Map() {
             ></span>
             Not Started
           </div>
-          <div className="flex items-center gap-1 text-xs">
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.25rem",
+              fontSize: "0.75rem",
+            }}
+          >
             <span
               style={{
                 width: 12,
@@ -278,7 +306,14 @@ export default function Map() {
             ></span>
             In Progress
           </div>
-          <div className="flex items-center gap-1 text-xs">
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.25rem",
+              fontSize: "0.75rem",
+            }}
+          >
             <span
               style={{
                 width: 12,
@@ -293,10 +328,13 @@ export default function Map() {
         </div>
       </div>
 
-      <div className="flex gap-4">
-        <div className="flex-1">
+      <div style={{ display: "flex", gap: "1rem", alignItems: "flex-start" }}>
+        <div style={{ flex: "1 1 0%", minWidth: 0 }}>
           <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-            <div className="map-container" style={{ height: "600px" }}>
+            <div
+              className="map-container"
+              style={{ height: "600px", width: "100%" }}
+            >
               <MapContainer
                 center={center}
                 zoom={9}
@@ -316,10 +354,11 @@ export default function Map() {
         </div>
 
         {selectedPU && (
-          <div style={{ width: 320 }}>
+          <div style={{ width: 320, flex: "0 0 320px" }}>
             <div className="card">
               <div className="card-header">
                 <div className="card-title">PU Details</div>
+
                 <button
                   onClick={() => setSelectedPU(null)}
                   className="text-gray-400 hover:text-gray-600"

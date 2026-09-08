@@ -166,9 +166,9 @@ class AdminController extends Controller
     {
         $query = AuditLog::with('actor')->orderBy('created_at', 'desc');
 
-        if ($request->has('action')) $query->where('action', $request->action);
-        if ($request->has('entity_type')) $query->where('entity_type', $request->entity_type);
-        if ($request->has('actor_id')) $query->where('actor_id', $request->actor_id);
+        if ($request->filled('action')) $query->where('action', $request->action);
+        if ($request->filled('entity_type')) $query->where('entity_type', $request->entity_type);
+        if ($request->filled('actor_id')) $query->where('actor_id', $request->actor_id);
 
         return response()->json($query->paginate(100));
     }
