@@ -63,6 +63,7 @@ export default function Dashboard() {
   };
 
   const assignment = user?.assignment;
+
   const target = server?.progress?.target ?? 10;
   const serverRegistered = server?.progress?.registered ?? 0;
   const registered = serverRegistered + localPending;
@@ -106,71 +107,66 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Progress Card */}
-        <div className="card">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-sm font-semibold text-gray-600">
-              Progress
-            </span>
-            <span className="text-sm font-bold text-primary">
-              {completion}%
-            </span>
+        <div className="card hero-progress">
+          <div
+            className="hero-ring"
+            style={{ "--pct": Math.min(completion, 100) }}
+          >
+            <div className="hero-ring-inner">
+              <div className="hero-ring-pct">{completion}%</div>
+              <div className="hero-ring-label">complete</div>
+            </div>
           </div>
-          <div className="progress-bar mb-2">
-            <div
-              className="progress-bar-fill"
-              style={{ width: `${Math.min(completion, 100)}%` }}
-            />
-          </div>
-          <div className="flex justify-between text-xs text-gray-500">
-            <span>Target: {target}</span>
-            <span>Registered: {registered}</span>
+          <div className="hero-counts">
+            <span className="registered">{registered}</span>
+            <span className="of-target">of {target} target</span>
           </div>
           {localPending > 0 && (
-            <div className="text-xs text-gray-500 mt-1">
+            <div className="hero-note">
               Includes {localPending} not yet synced from this device
             </div>
           )}
         </div>
 
         {/* Sync status */}
-        <div className="card">
-          <div className="flex justify-between items-center mb-3">
-            <span className="text-sm font-semibold text-gray-600">
-              Synchronization
-            </span>
-            <span
-              className={`badge ${isOnline ? "badge-green" : "badge-yellow"}`}
-            >
-              {isOnline ? "ONLINE" : "OFFLINE"}
-            </span>
-          </div>
-          <div className="flex justify-between text-sm mb-3">
-            <div className="text-center">
-              <div className="font-bold text-lg">{localPending}</div>
-              <div className="text-xs text-gray-500">Pending</div>
-            </div>
-            <div className="text-center">
-              <div className="font-bold text-lg text-primary">{synced}</div>
-              <div className="text-xs text-gray-500">Synced</div>
-            </div>
-            <div className="text-center">
-              <div className="font-bold text-lg text-danger">{conflicts}</div>
-              <div className="text-xs text-gray-500">Conflicts</div>
-            </div>
-          </div>
-          {localPending > 0 && (
-            <button
-              className="btn btn-primary"
-              onClick={handleSync}
-              disabled={!isOnline || syncing}
-            >
-              {syncing
-                ? "Syncing..."
-                : `Sync ${localPending} Record${localPending !== 1 ? "s" : ""}`}
-            </button>
-          )}
+        <div
+          className="flex justify-between items-center mb-2"
+          style={{ padding: "0 0.125rem" }}
+        >
+          <span className="text-xs font-semibold text-gray-600">
+            Synchronization
+          </span>
+          <span
+            className={`badge ${isOnline ? "badge-green" : "badge-yellow"}`}
+          >
+            {isOnline ? "ONLINE" : "OFFLINE"}
+          </span>
         </div>
+        <div className="status-strip">
+          <div className="status-chip">
+            <div className="status-chip-value pending">{localPending}</div>
+            <div className="status-chip-label">Pending</div>
+          </div>
+          <div className="status-chip">
+            <div className="status-chip-value synced">{synced}</div>
+            <div className="status-chip-label">Synced</div>
+          </div>
+          <div className="status-chip">
+            <div className="status-chip-value conflicts">{conflicts}</div>
+            <div className="status-chip-label">Conflicts</div>
+          </div>
+        </div>
+        {localPending > 0 && (
+          <button
+            className="btn btn-secondary mb-3"
+            onClick={handleSync}
+            disabled={!isOnline || syncing}
+          >
+            {syncing
+              ? "Syncing..."
+              : `Sync ${localPending} Record${localPending !== 1 ? "s" : ""}`}
+          </button>
+        )}
 
         <button
           className="btn btn-primary mb-3"

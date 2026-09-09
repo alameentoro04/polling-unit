@@ -168,6 +168,15 @@ class RegistrationController extends Controller
         if ($request->filled('date_from')) $query->whereDate('registered_at', '>=', $request->date_from);
         if ($request->filled('date_to')) $query->whereDate('registered_at', '<=', $request->date_to);
 
+        if ($request->filled('q')) {
+            $q = strtolower($request->input('q'));
+            $query->where(function ($sub) use ($q) {
+                $sub->whereRaw('LOWER(pvc_number) LIKE ?', ["%{$q}%"])
+                    ->orWhereRaw('LOWER(full_name) LIKE ?', ["%{$q}%"])
+                    ->orWhereRaw('LOWER(phone_number) LIKE ?', ["%{$q}%"]);
+            });
+        }
+
         return response()->json($query->orderBy('registered_at', 'desc')->paginate(50));
     }
 

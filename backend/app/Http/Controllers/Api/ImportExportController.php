@@ -29,7 +29,6 @@ class ImportExportController extends Controller
         $file = $request->file('file');
         $extension = $file->getClientOriginalExtension();
 
-        // Read file based on extension
         $data = $this->readExcel($file, $extension);
 
         if (empty($data)) {
@@ -136,6 +135,14 @@ class ImportExportController extends Controller
         if ($request->filled('agent_id')) $query->where('registered_by', $request->agent_id);
         if ($request->filled('date_from')) $query->whereDate('registered_at', '>=', $request->date_from);
         if ($request->filled('date_to')) $query->whereDate('registered_at', '<=', $request->date_to);
+        if ($request->filled('q')) {
+            $q = strtolower($request->input('q'));
+            $query->where(function ($sub) use ($q) {
+                $sub->whereRaw('LOWER(pvc_number) LIKE ?', ["%{$q}%"])
+                    ->orWhereRaw('LOWER(full_name) LIKE ?', ["%{$q}%"])
+                    ->orWhereRaw('LOWER(phone_number) LIKE ?', ["%{$q}%"]);
+            });
+        }
 
         $this->applyScope($query, $scope);
 
@@ -147,6 +154,7 @@ class ImportExportController extends Controller
         Storage::disk('public')->makeDirectory('exports');
         $csv = fopen(Storage::disk('public')->path($filepath), 'w');
 
+        // Headers
         fputcsv($csv, [
             'ID', 'PVC Number', 'Full Name', 'Phone Number', 'Date of Birth', 'Gender',
             'Polling Unit', 'Ward', 'LGA', 'Agent', 'Registered At', 'Sync Status'
@@ -190,7 +198,7 @@ class ImportExportController extends Controller
             $headers = fgetcsv($handle);
             if (!$headers) return [];
 
-
+          
             $headers = array_map(function($h) {
                 return strtolower(trim(str_replace(' ', '_', $h)));
             }, $headers);

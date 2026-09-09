@@ -113,8 +113,6 @@ button:disabled {
   transition: transform 0.2s ease;
 }
 
-/* Hidden on desktop — only shown below the mobile breakpoint, and only
-   while the sidebar drawer is open. */
 .mobile-topbar {
   display: none;
 }
@@ -472,8 +470,6 @@ button:disabled {
   text-transform: uppercase;
 }
 
-/* Used by Map and Agent Performance for target-vs-registered bars; was
-   referenced by className in both pages but never actually defined. */
 .progress-bar {
   height: 6px;
   border-radius: 999px;
@@ -531,6 +527,55 @@ button:disabled {
 }
 .border-gray-100 {
   border-color: var(--gray-100);
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 16, 0.5);
+  z-index: 100;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 3rem 1rem;
+  overflow-y: auto;
+}
+.modal-panel {
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  width: 100%;
+  max-width: 560px;
+  padding: 1.5rem;
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  color: var(--gray-400);
+  line-height: 1;
+}
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--gray-100);
+  font-size: 0.875rem;
+}
+.detail-row dt {
+  color: var(--gray-500);
+}
+.detail-row dd {
+  font-weight: 600;
+  text-align: right;
 }
 
 .mt-2 {

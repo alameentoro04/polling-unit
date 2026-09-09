@@ -2,12 +2,13 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { storeRegistration, findLocalByPvc } from "../services/db";
 import { useNetwork } from "../hooks/useNetwork";
-import { api } from "../hooks/useAuth";
+import { api, useAuth } from "../hooks/useAuth";
 import { compressImage } from "../services/image";
 
 export default function Register() {
   const navigate = useNavigate();
   const isOnline = useNetwork();
+  const { user } = useAuth();
   const [form, setForm] = useState({
     pvc_number: "",
     full_name: "",
@@ -21,10 +22,79 @@ export default function Register() {
   const [duplicateWarning, setDuplicateWarning] = useState("");
   const [gps, setGps] = useState(null);
 
+  // Dynamic Fields State
   const [formFields, setFormFields] = useState([]);
   const [dynamicData, setDynamicData] = useState({});
+  const [lgas, setLgas] = useState([]);
+  const [wards, setWards] = useState([]);
+  const [pollingUnits, setPollingUnits] = useState([]);
+  const [location, setLocation] = useState(() => {
+    try {
+      const cached = localStorage.getItem("last_registration_location");
+      return cached
+        ? JSON.parse(cached)
+        : { lga_id: "", ward_id: "", polling_unit_id: "" };
+    } catch {
+      return { lga_id: "", ward_id: "", polling_unit_id: "" };
+    }
+  });
+  const [locationsLoading, setLocationsLoading] = useState(false);
 
   useEffect(() => {
+    api
+      .get("/lgas")
+      .then((res) => setLgas(res.data))
+      .catch(() => {});
+  }, []);
+
+  // Seed the picker with the agent's own assignment the first time (only
+  // if nothing was cached from a previous session), and load its wards.
+  useEffect(() => {
+    if (!user?.assignment || location.lga_id) return;
+    const { lga_id, ward_id, polling_unit_id } = user.assignment;
+    setLocation({ lga_id, ward_id, polling_unit_id });
+  }, [user]);
+
+  useEffect(() => {
+    if (!location.lga_id) return;
+    setLocationsLoading(true);
+    api
+      .get(`/lgas/${location.lga_id}/wards`)
+      .then((res) => setWards(res.data))
+      .finally(() => setLocationsLoading(false));
+  }, [location.lga_id]);
+
+  useEffect(() => {
+    if (!location.ward_id) {
+      setPollingUnits([]);
+      return;
+    }
+    setLocationsLoading(true);
+    api
+      .get(`/wards/${location.ward_id}/polling-units`)
+      .then((res) => setPollingUnits(res.data))
+      .finally(() => setLocationsLoading(false));
+  }, [location.ward_id]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      "last_registration_location",
+      JSON.stringify(location)
+    );
+  }, [location]);
+
+  const handleLgaChange = (lga_id) => {
+    setLocation({ lga_id, ward_id: "", polling_unit_id: "" });
+  };
+  const handleWardChange = (ward_id) => {
+    setLocation((l) => ({ ...l, ward_id, polling_unit_id: "" }));
+  };
+  const handlePuChange = (polling_unit_id) => {
+    setLocation((l) => ({ ...l, polling_unit_id }));
+  };
+
+  useEffect(() => {
+    // Load form fields from API or cache
     api
       .get("/form-fields")
       .then((res) => setFormFields(res.data))
@@ -110,6 +180,9 @@ export default function Register() {
         gps_accuracy: gps?.accuracy,
         registered_at: new Date().toISOString(),
         dynamic_data: dynamicData,
+        polling_unit_id: location.polling_unit_id || null,
+        ward_id: location.ward_id || null,
+        lga_id: location.lga_id || null,
       });
 
       navigate("/");
@@ -137,6 +210,67 @@ export default function Register() {
       <div className="container">
         <form onSubmit={handleSubmit}>
           <div className="card">
+            <div className="form-group">
+              <label className="label">Local Government Area</label>
+              <select
+                className="input"
+                value={location.lga_id}
+                onChange={(e) => handleLgaChange(e.target.value)}
+              >
+                <option value="">Select LGA...</option>
+                {lgas.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="label">Ward</label>
+              <select
+                className="input"
+                value={location.ward_id}
+                onChange={(e) => handleWardChange(e.target.value)}
+                disabled={!location.lga_id}
+              >
+                <option value="">Select Ward...</option>
+                {wards.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="label">Polling Unit</label>
+              <select
+                className="input"
+                value={location.polling_unit_id}
+                onChange={(e) => handlePuChange(e.target.value)}
+                disabled={!location.ward_id}
+              >
+                <option value="">Select Polling Unit...</option>
+                {pollingUnits.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              {locationsLoading && (
+                <div className="text-xs text-gray-500 mt-1">Loading…</div>
+              )}
+              {user?.assignment &&
+                location.polling_unit_id !==
+                  String(user.assignment.polling_unit_id) && (
+                  <div className="text-xs text-warning mt-1">
+                    ⚠️ Different from your assigned polling unit (
+                    {user.assignment.polling_unit_name}).
+                  </div>
+                )}
+            </div>
+          </div>
+
+          <div className="card mt-3">
             <div className="form-group">
               <label className="label">PVC Number *</label>
               <input

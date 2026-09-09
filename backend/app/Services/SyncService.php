@@ -69,15 +69,19 @@ class SyncService
         }
 
         $pollingUnit = $assignment->pollingUnit;
+        if (!empty($payload['polling_unit_id'])) {
+            $chosen = \App\Models\PollingUnit::with('ward')->find($payload['polling_unit_id']);
+            if ($chosen) {
+                $pollingUnit = $chosen;
+            }
+        }
 
-        
         $existing = Registration::whereRaw('LOWER(pvc_number) = ?', [strtolower($pvcNumber)])
             ->where('is_deleted', false)
             ->lockForUpdate()
             ->first();
 
         if ($existing) {
-            // Create conflict record
             $conflict = Registration::create([
                 'client_id' => $payload['client_id'],
                 'pvc_number' => $pvcNumber,

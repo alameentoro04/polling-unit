@@ -29,6 +29,7 @@ export default function FormBuilder() {
     help_text: "",
   });
   const [optionInput, setOptionInput] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
     fetchFields();
@@ -62,13 +63,23 @@ export default function FormBuilder() {
       ...form,
       options: form.type === "select" ? form.options : null,
     };
-    if (editing) {
-      await api.put(`/form-fields/${editing}`, payload);
-    } else {
-      await api.post("/form-fields", payload);
+    setError("");
+    try {
+      if (editing) {
+        await api.put(`/form-fields/${editing}`, payload);
+      } else {
+        await api.post("/form-fields", payload);
+      }
+      resetForm();
+      fetchFields();
+    } catch (e) {
+      const serverErrors = e.response?.data?.errors;
+      const message = serverErrors
+        ? Object.values(serverErrors).flat().join(" ")
+        : e.response?.data?.message ||
+          "Couldn't save this field. Please try again.";
+      setError(message);
     }
-    resetForm();
-    fetchFields();
   };
 
   const handleEdit = (f) => {
@@ -235,6 +246,15 @@ export default function FormBuilder() {
                 </span>
               ))}
             </div>
+          </div>
+        )}
+
+        {error && (
+          <div
+            className="badge badge-red mb-3"
+            style={{ width: "100%", justifyContent: "center" }}
+          >
+            {error}
           </div>
         )}
 

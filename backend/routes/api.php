@@ -28,6 +28,16 @@ Route::middleware(['auth:sanctum', ScopeDataAccess::class])->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/change-password', [AuthController::class, 'changePassword']);
 
+    Route::get('/lgas', function () {
+        return response()->json(\App\Models\Lga::orderBy('name')->get(['id', 'name', 'code']));
+    });
+    Route::get('/lgas/{id}/wards', function ($id) {
+        return response()->json(\App\Models\Ward::where('lga_id', $id)->orderBy('name')->get(['id', 'name', 'code']));
+    });
+    Route::get('/wards/{id}/polling-units', function ($id) {
+        return response()->json(\App\Models\PollingUnit::where('ward_id', $id)->orderBy('name')->get(['id', 'name', 'code']));
+    });
+
     // Agent routes
     Route::middleware([EnsureAgentScope::class, RoleMiddleware::class . ':agent'])->group(function () {
         Route::get('/agent/dashboard', [RegistrationController::class, 'agentDashboard']);
@@ -55,17 +65,6 @@ Route::middleware(['auth:sanctum', ScopeDataAccess::class])->group(function () {
 
         Route::get('/map/polling-units', [MapController::class, 'pollingUnits']);
         Route::get('/map/polling-units/{id}', [MapController::class, 'pollingUnitDetail']);
-
-        // Location lists for filters
-        Route::get('/lgas', function () {
-            return response()->json(\App\Models\Lga::orderBy('name')->get(['id', 'name', 'code']));
-        });
-        Route::get('/lgas/{id}/wards', function ($id) {
-            return response()->json(\App\Models\Ward::where('lga_id', $id)->orderBy('name')->get(['id', 'name', 'code']));
-        });
-        Route::get('/wards/{id}/polling-units', function ($id) {
-            return response()->json(\App\Models\PollingUnit::where('ward_id', $id)->orderBy('name')->get(['id', 'name', 'code']));
-        });
 
         // Analytics
         Route::get('/analytics/gender', [AnalyticsController::class, 'genderBreakdown']);
