@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Registration;
 use App\Models\SyncQueue;
+use App\Services\AuditService;
 use App\Services\SyncService;
 use Illuminate\Http\Request;
 
@@ -78,6 +79,7 @@ class SyncController extends Controller
             default:
                 return response()->json(['message' => 'Invalid action'], 422);
         }
+        AuditService::logConflictResolved($registration, $action, auth()->id());
 
         return response()->json(['message' => 'Conflict resolved']);
     }

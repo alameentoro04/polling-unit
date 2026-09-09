@@ -12,6 +12,7 @@ const Map = lazy(() => import("./pages/Map"));
 const Registrations = lazy(() => import("./pages/Registrations"));
 const Import = lazy(() => import("./pages/Import"));
 const Users = lazy(() => import("./pages/Users"));
+const PollingUnits = lazy(() => import("./pages/PollingUnits"));
 const AuditLogs = lazy(() => import("./pages/AuditLogs"));
 const SyncConflicts = lazy(() => import("./pages/SyncConflicts"));
 const AgentPerformance = lazy(() => import("./pages/AgentPerformance"));
@@ -130,6 +131,18 @@ function App() {
                 isAdmin ? (
                   <ErrorBoundary>
                     <Users />
+                  </ErrorBoundary>
+                ) : (
+                  <Navigate to="/" />
+                )
+              }
+            />
+            <Route
+              path="/polling-units"
+              element={
+                isAdmin ? (
+                  <ErrorBoundary>
+                    <PollingUnits />
                   </ErrorBoundary>
                 ) : (
                   <Navigate to="/" />

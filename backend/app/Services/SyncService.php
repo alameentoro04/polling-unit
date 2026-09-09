@@ -29,6 +29,7 @@ class SyncService
             ];
         }
 
+        // Create or update sync queue record
         $syncQueue = SyncQueue::updateOrCreate(
             ['client_id' => $clientId],
             [
@@ -82,6 +83,7 @@ class SyncService
             ->first();
 
         if ($existing) {
+            // Create conflict record
             $conflict = Registration::create([
                 'client_id' => $payload['client_id'],
                 'pvc_number' => $pvcNumber,

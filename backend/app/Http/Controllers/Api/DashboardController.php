@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Lga;
 use App\Models\PollingUnit;
 use App\Models\Registration;
+use App\Models\Setting;
 use App\Models\User;
 use App\Models\Ward;
 use Illuminate\Http\Request;
@@ -18,7 +19,7 @@ class DashboardController extends Controller
     $scope = $request->attributes->get('data_scope');
 
     $query = Registration::query()->active();
-    $puQuery = PollingUnit::query();
+    $puQuery = PollingUnit::query()->where('is_active', true);
     $agentQuery = User::query()
         ->whereHas('role', fn($q) => $q->where('name', 'agent'));
 
@@ -28,25 +29,38 @@ class DashboardController extends Controller
     $totalRegistrations = $query->count();
     $totalPUs = $puQuery->count();
     $totalAgents = $agentQuery->where('is_active', true)->count();
-    $totalWards = Ward::count();
-    $totalLgas = Lga::count();
 
-    $target = $totalPUs * 10;
+    if (($scope['type'] ?? 'all') === 'lga' && !empty($scope['lga_id'])) {
+        $totalLgas = 1;
+        $totalWards = Ward::where('lga_id', $scope['lga_id'])->count();
+    } elseif (($scope['type'] ?? 'all') === 'ward' && !empty($scope['ward_id'])) {
+        $totalLgas = 1;
+        $totalWards = 1;
+    } else {
+        $totalWards = Ward::count();
+        $totalLgas = Lga::count();
+    }
+
+    $target = $totalPUs * Setting::get('target_per_pu', 10);
 
     $completion = $target > 0
         ? round(($totalRegistrations / $target) * 100, 2)
         : 0;
 
-    // Count polling units that have reached their target of 10 registrations
-    $completedPUsQuery = Registration::query()
-        ->active()
-        ->select('polling_unit_id')
+    $defaultTarget = Setting::get('target_per_pu', 10);
+    $countsByPuQuery = Registration::query()->active();
+    $this->applyScope($countsByPuQuery, $scope);
+    $countsByPu = $countsByPuQuery
+        ->select('polling_unit_id', DB::raw('COUNT(*) as cnt'))
         ->groupBy('polling_unit_id')
-        ->havingRaw('COUNT(*) >= 10');
+        ->pluck('cnt', 'polling_unit_id');
 
-    $this->applyScope($completedPUsQuery, $scope);
+    $targetsByPu = PollingUnit::whereIn('id', $countsByPu->keys())->pluck('target_count', 'id');
 
-    $completedPUs = $completedPUsQuery->get()->count();
+    $completedPUs = $countsByPu->filter(function ($count, $puId) use ($targetsByPu, $defaultTarget) {
+        $target = $targetsByPu[$puId] ?: $defaultTarget;
+        return $count >= $target;
+    })->count();
 
     return response()->json([
         'total_lgas' => $totalLgas,
@@ -105,7 +119,7 @@ class DashboardController extends Controller
             ->withCount('pollingUnits as pu_count')
             ->get()
             ->map(function ($lga) {
-                $target = $lga->pu_count * 10;
+                $target = $lga->pu_count * Setting::get('target_per_pu', 10);
                 return [
                     'id' => $lga->id,
                     'name' => $lga->name,
@@ -142,7 +156,7 @@ class DashboardController extends Controller
         }
 
         $wards = $query->get()->map(function ($ward) {
-            $target = $ward->pu_count * 10;
+            $target = $ward->pu_count * Setting::get('target_per_pu', 10);
             return [
                 'id' => $ward->id,
                 'name' => $ward->name,
@@ -177,7 +191,7 @@ class DashboardController extends Controller
         }
 
         $agents = $query->get()->map(function ($agent) {
-            $target = $agent->assignedPollingUnit?->target_count ?: 10;
+            $target = $agent->assignedPollingUnit?->target_count ?: Setting::get('target_per_pu', 10);
             return [
                 'id' => $agent->id,
                 'name' => $agent->full_name,
@@ -196,6 +210,7 @@ class DashboardController extends Controller
         $scope = $request->attributes->get('data_scope');
 
         $puQuery = PollingUnit::query()
+            ->where('is_active', true)
             ->withCount(['registrations as active_registrations_count' => fn($q) => $q->active()]);
         $this->applyScopeToPu($puQuery, $scope);
 
@@ -205,7 +220,7 @@ class DashboardController extends Controller
 
         foreach ($puQuery->get(['id', 'target_count']) as $pu) {
             $count = $pu->active_registrations_count;
-            $target = $pu->target_count ?: 10;
+            $target = $pu->target_count ?: Setting::get('target_per_pu', 10);
             if ($count === 0) $notStarted++;
             elseif ($count >= $target) $completed++;
             else $inProgress++;

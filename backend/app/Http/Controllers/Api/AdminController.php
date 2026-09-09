@@ -17,9 +17,9 @@ class AdminController extends Controller
 {
     public function index(Request $request)
     {
-        $query = User::with('role')->orderBy('created_at', 'desc');
+        $query = User::with(['role', 'assignedPollingUnit.ward.lga', 'managedLga', 'managedWard'])->orderBy('created_at', 'desc');
 
-        if ($request->has('role')) {
+        if ($request->filled('role')) {
             $query->whereHas('role', fn($q) => $q->where('name', $request->role));
         }
 

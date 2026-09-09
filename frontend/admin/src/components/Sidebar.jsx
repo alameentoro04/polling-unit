@@ -12,6 +12,9 @@ export default function Sidebar({ open, onClose }) {
     { to: "/map", label: "Map", icon: "🗺️" },
     { to: "/registrations", label: "Registrations", icon: "📝" },
     ...(isAdmin
+      ? [{ to: "/polling-units", label: "Polling Units", icon: "📍" }]
+      : []),
+    ...(isAdmin
       ? [
           { to: "/users", label: "User Management", icon: "👥" },
           { to: "/form-builder", label: "Form Builder", icon: "🛠️" },

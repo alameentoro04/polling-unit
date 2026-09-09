@@ -11,21 +11,20 @@ class PollingUnit extends Model
 
     protected $fillable = [
         'name', 'code', 'ward_id', 'location',
-        'latitude', 'longitude', 'is_location_precise', 'target_count',
+        'latitude', 'longitude', 'is_location_precise', 'target_count', 'is_active',
     ];
 
     protected $casts = [
         'latitude' => 'float',
         'longitude' => 'float',
         'is_location_precise' => 'boolean',
+        'is_active' => 'boolean',
     ];
 
     public function ward()
     {
         return $this->belongsTo(Ward::class);
     }
-
-
 
     public function registrations()
     {

@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\RegistrationController;
 use App\Http\Controllers\Api\SyncController;
 use App\Http\Controllers\Api\ImportExportController;
 use App\Http\Controllers\Api\MapController;
+use App\Http\Controllers\Api\PollingUnitController;
 use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\FormFieldController;
 use App\Http\Controllers\Api\AnalyticsController;
@@ -35,7 +36,7 @@ Route::middleware(['auth:sanctum', ScopeDataAccess::class])->group(function () {
         return response()->json(\App\Models\Ward::where('lga_id', $id)->orderBy('name')->get(['id', 'name', 'code']));
     });
     Route::get('/wards/{id}/polling-units', function ($id) {
-        return response()->json(\App\Models\PollingUnit::where('ward_id', $id)->orderBy('name')->get(['id', 'name', 'code']));
+        return response()->json(\App\Models\PollingUnit::where('ward_id', $id)->where('is_active', true)->orderBy('name')->get(['id', 'name', 'code']));
     });
 
     // Agent routes
@@ -44,6 +45,7 @@ Route::middleware(['auth:sanctum', ScopeDataAccess::class])->group(function () {
         Route::get('/agent/records', [RegistrationController::class, 'myRecords']);
         Route::get('/agent/check-pvc', [RegistrationController::class, 'checkPvc'])->middleware('throttle:60,1');
         Route::post('/agent/register', [RegistrationController::class, 'storeOffline'])->middleware('throttle:30,1');
+        Route::post('/agent/upload-photo', [RegistrationController::class, 'uploadPhoto'])->middleware('throttle:30,1');
         Route::post('/agent/heartbeat', [AuthController::class, 'heartbeat']);
         Route::post('/sync/push', [SyncController::class, 'push'])->middleware('throttle:30,1');
         Route::get('/sync/status', [SyncController::class, 'status']);
@@ -65,6 +67,8 @@ Route::middleware(['auth:sanctum', ScopeDataAccess::class])->group(function () {
 
         Route::get('/map/polling-units', [MapController::class, 'pollingUnits']);
         Route::get('/map/polling-units/{id}', [MapController::class, 'pollingUnitDetail']);
+        Route::get('/polling-units', [PollingUnitController::class, 'index']);
+        Route::get('/polling-units/{id}', [PollingUnitController::class, 'show']);
 
         // Analytics
         Route::get('/analytics/gender', [AnalyticsController::class, 'genderBreakdown']);
@@ -85,6 +89,10 @@ Route::middleware(['auth:sanctum', ScopeDataAccess::class])->group(function () {
 
         Route::put('/registrations/{id}', [RegistrationController::class, 'update']);
         Route::delete('/registrations/{id}', [RegistrationController::class, 'softDelete']);
+
+        Route::post('/polling-units', [PollingUnitController::class, 'store']);
+        Route::put('/polling-units/{id}', [PollingUnitController::class, 'update']);
+        Route::delete('/polling-units/{id}', [PollingUnitController::class, 'destroy']);
 
         Route::get('/audit-logs', [AdminController::class, 'auditLogs']);
         Route::get('/sync-conflicts', [SyncController::class, 'conflicts']);

@@ -12,6 +12,22 @@ use Illuminate\Support\Facades\Validator;
 
 class RegistrationController extends Controller
 {
+ 
+    public function uploadPhoto(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'photo' => 'required|image|max:5120', // 5MB
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $path = $request->file('photo')->store('registration-photos', 'public');
+
+        return response()->json(['url' => url('storage/' . $path)]);
+    }
+
     public function agentDashboard(Request $request): JsonResponse
     {
         $agent = $request->user();
@@ -161,13 +177,19 @@ class RegistrationController extends Controller
 
         $this->applyScope($query, $scope);
 
+        // $request->has() is true even when the query string contains an
+        // *empty* value (e.g. "?lga_id=&date_from="), which the frontend
+        // always sends for unset filters. That fed empty strings straight
+        // into where()/whereDate() — comparing an integer/date column to
+        // '' — which MySQL rejects in strict mode and threw a 500 on
+        // every registrations list load. filled() correctly treats an
+        // empty string as "not provided".
         if ($request->filled('lga_id')) $query->where('lga_id', $request->lga_id);
         if ($request->filled('ward_id')) $query->where('ward_id', $request->ward_id);
         if ($request->filled('polling_unit_id')) $query->where('polling_unit_id', $request->polling_unit_id);
         if ($request->filled('agent_id')) $query->where('registered_by', $request->agent_id);
         if ($request->filled('date_from')) $query->whereDate('registered_at', '>=', $request->date_from);
         if ($request->filled('date_to')) $query->whereDate('registered_at', '<=', $request->date_to);
-
         if ($request->filled('q')) {
             $q = strtolower($request->input('q'));
             $query->where(function ($sub) use ($q) {

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Registration;
 use App\Models\User;
 use App\Models\Lga;
+use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -92,7 +93,6 @@ class AnalyticsController extends Controller
 
         $data = $query->get();
         $dates = collect(range(0, $days - 1))->map(fn($d) => now()->subDays($d)->format('Y-m-d'))->reverse()->values();
-
         $totalsByAgent = $data->groupBy('registered_by')->map->sum('count');
         $topAgentIds = $totalsByAgent->sortDesc()->keys()->take(15);
 
@@ -124,7 +124,7 @@ class AnalyticsController extends Controller
         $lgas = Lga::withCount(['registrations as registered_count' => function ($q) {
             $q->active();
         }])->withCount('pollingUnits as pu_count')->get()->map(function ($lga) {
-            $target = $lga->pu_count * 10;
+            $target = $lga->pu_count * Setting::get('target_per_pu', 10);
             return [
                 'id' => $lga->id,
                 'name' => $lga->name,

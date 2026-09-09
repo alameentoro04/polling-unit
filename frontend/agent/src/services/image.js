@@ -1,3 +1,8 @@
+export async function dataUrlToBlob(dataUrl) {
+  const res = await fetch(dataUrl);
+  return await res.blob();
+}
+
 export async function compressImage(file, maxWidth = 800, quality = 0.8) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();

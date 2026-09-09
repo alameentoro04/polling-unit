@@ -90,4 +90,16 @@ class AuditService
     {
         return self::log('EXCEL_EXPORTED', 'export', null, null, ['type' => $type, 'filters' => $filters], $actorId);
     }
+
+    public static function logConflictResolved(Registration $registration, string $action, int $actorId): AuditLog
+    {
+        return self::log(
+            'SYNC_CONFLICT_RESOLVED',
+            'registration',
+            (string) $registration->id,
+            ['sync_status' => 'conflict'],
+            ['action' => $action, 'sync_status' => $registration->sync_status, 'is_deleted' => $registration->is_deleted],
+            $actorId
+        );
+    }
 }

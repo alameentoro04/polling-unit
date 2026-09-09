@@ -1,14 +1,42 @@
 import { api } from "../hooks/useAuth";
 import { getSyncQueue, markSynced, markConflict, updateSyncRetry } from "./db";
+import { dataUrlToBlob } from "./image";
+
+async function resolvePhoto(payload) {
+  if (!payload.photograph_url || !payload.photograph_url.startsWith("data:")) {
+    return payload;
+  }
+  const blob = await dataUrlToBlob(payload.photograph_url);
+  const formData = new FormData();
+  formData.append("photo", blob, "photo.jpg");
+  const res = await api.post("/agent/upload-photo", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return { ...payload, photograph_url: res.data.url };
+}
 
 export async function syncPendingRecords() {
   const pending = await getSyncQueue();
   if (pending.length === 0) return { synced: 0, conflicts: 0, failed: 0 };
 
-  const records = pending.map((item) => item.payload);
   let synced = 0,
     conflicts = 0,
     failed = 0;
+
+  const ready = [];
+  for (const item of pending) {
+    try {
+      const payload = await resolvePhoto(item.payload);
+      ready.push({ ...item, payload });
+    } catch (e) {
+      await updateSyncRetry(item.client_id);
+      failed++;
+    }
+  }
+
+  if (ready.length === 0) return { synced, conflicts, failed };
+
+  const records = ready.map((item) => item.payload);
 
   try {
     const res = await api.post("/sync/push", { records });
@@ -25,7 +53,7 @@ export async function syncPendingRecords() {
       }
     }
   } catch (error) {
-    for (const item of pending) {
+    for (const item of ready) {
       await updateSyncRetry(item.client_id);
       failed++;
     }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AgentAssignment;
 use App\Models\PollingUnit;
+use App\Models\Setting;
 use Illuminate\Http\Request;
 
 class MapController extends Controller
@@ -14,6 +15,7 @@ class MapController extends Controller
         $scope = $request->attributes->get('data_scope');
 
         $query = PollingUnit::query()
+            ->where('is_active', true)
             ->with(['ward.lga'])
             ->withCount(['registrations as active_registrations_count' => fn($q) => $q->active()])
             ->whereNotNull('latitude')
@@ -49,7 +51,7 @@ class MapController extends Controller
 
         $pollingUnits = $query->get()->map(function ($pu) {
             $registered = $pu->active_registrations_count;
-            $target = $pu->target_count ?: 10;
+            $target = $pu->target_count ?: Setting::get('target_per_pu', 10);
             $status = $registered === 0 ? 'not_started' : ($registered >= $target ? 'completed' : 'in_progress');
 
             return [
@@ -84,7 +86,6 @@ class MapController extends Controller
             ->withCount(['registrations as active_registrations_count' => fn($q) => $q->active()])
             ->findOrFail($id);
 
-
         $currentAssignment = AgentAssignment::with('user')
             ->where('polling_unit_id', $pu->id)
             ->where('is_current', true)
@@ -92,7 +93,7 @@ class MapController extends Controller
             ->first();
 
         $registered = $pu->active_registrations_count;
-        $target = $pu->target_count ?: 10;
+        $target = $pu->target_count ?: Setting::get('target_per_pu', 10);
 
         return response()->json([
             'id' => $pu->id,

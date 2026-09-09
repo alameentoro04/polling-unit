@@ -29,7 +29,14 @@ class ImportExportController extends Controller
         $file = $request->file('file');
         $extension = $file->getClientOriginalExtension();
 
+        // Read file based on extension
         $data = $this->readExcel($file, $extension);
+
+        if ($data === null) {
+            return response()->json([
+                'message' => 'Only CSV files are supported for import right now. Please save your spreadsheet as CSV (File → Save As → CSV) and upload that.'
+            ], 422);
+        }
 
         if (empty($data)) {
             return response()->json(['message' => 'Could not read file or file is empty'], 422);
@@ -51,6 +58,7 @@ class ImportExportController extends Controller
             foreach ($data as $index => $row) {
                 $rowNum = $index + 2; // +2 for header row
 
+                // Validate required fields
                 $required = ['lga', 'ward', 'polling_unit_code', 'polling_unit_name'];
                 $missing = [];
                 foreach ($required as $field) {
@@ -66,32 +74,39 @@ class ImportExportController extends Controller
                     continue;
                 }
 
-                $existing = PollingUnit::where('code', $row['polling_unit_code'])->first();
+                $code = trim($row['polling_unit_code']);
+                $existing = PollingUnit::where('code', $code)->first();
                 if ($existing) {
                     $results['invalid_rows']++;
                     $results['duplicates']++;
-                    $results['errors'][] = "Row {$rowNum}: Duplicate polling unit code '{$row['polling_unit_code']}'";
+                    $results['errors'][] = "Row {$rowNum}: Duplicate polling unit code '{$code}'";
                     continue;
                 }
 
+                $state = \App\Models\State::firstOrCreate(
+                    ['name' => 'Bauchi'],
+                    ['code' => 'BA']
+                );
                 $lga = Lga::firstOrCreate(
                     ['name' => trim($row['lga'])],
-                    ['state_id' => 1, 'code' => $this->generateLgaCode()]
+                    ['state_id' => $state->id, 'code' => $this->generateLgaCode()]
                 );
 
+                // Find or create Ward
                 $ward = Ward::firstOrCreate(
                     ['name' => trim($row['ward']), 'lga_id' => $lga->id],
                     ['code' => $lga->code . '-WD' . str_pad(Ward::where('lga_id', $lga->id)->count() + 1, 2, '0', STR_PAD_LEFT)]
                 );
 
+                // Create Polling Unit
                 PollingUnit::create([
                     'ward_id' => $ward->id,
-                    'code' => trim($row['polling_unit_code']),
+                    'code' => $code,
                     'name' => trim($row['polling_unit_name']),
                     'location' => trim($row['polling_unit_location'] ?? ''),
                     'latitude' => $row['latitude'] ?? null,
                     'longitude' => $row['longitude'] ?? null,
-                    'target_count' => 10,
+                    'target_count' => \App\Models\Setting::get('target_per_pu', 10),
                 ]);
 
                 $results['valid_rows']++;
@@ -210,10 +225,8 @@ class ImportExportController extends Controller
             }
             fclose($handle);
         } else {
-            
-            return response()->json([
-                'message' => 'Please upload as CSV format. XLSX support requires phpoffice/phpspreadsheet package.'
-            ], 422)->getData(true);
+
+            return null;
         }
 
         return $data;

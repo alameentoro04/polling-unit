@@ -34,7 +34,6 @@ export default function Dashboard() {
     date_to: "",
   });
 
-  // Location dropdown data (separate from chart data)
   const [allLgas, setAllLgas] = useState([]);
   const [wards, setWards] = useState([]);
   const [pollingUnits, setPollingUnits] = useState([]);
@@ -101,7 +100,7 @@ export default function Dashboard() {
       <div>
         <h1 className="text-lg font-bold mb-4">Dashboard</h1>
         <div className="summary-grid">
-          {Array.from({ length: 6 }).map((_, i) => (
+          {Array.from({ length: 8 }).map((_, i) => (
             <SkeletonCard key={i} />
           ))}
         </div>
@@ -215,6 +214,14 @@ export default function Dashboard() {
 
       {/* Summary cards */}
       <div className="summary-grid">
+        <div className="summary-card">
+          <div className="summary-label">Total LGAs</div>
+          <div className="summary-value">{summary.total_lgas}</div>
+        </div>
+        <div className="summary-card">
+          <div className="summary-label">Total Wards</div>
+          <div className="summary-value">{summary.total_wards}</div>
+        </div>
         <div className="summary-card info">
           <div className="summary-label">Total Registered</div>
           <div className="summary-value">

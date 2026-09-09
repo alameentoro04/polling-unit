@@ -5,9 +5,13 @@ import {
   updatePendingRegistration,
   deletePendingRegistration,
 } from "../services/db";
+import { useAuth } from "../hooks/useAuth";
+import { useNetwork } from "../hooks/useNetwork";
 
 export default function Records() {
   const navigate = useNavigate();
+  const { api } = useAuth();
+  const isOnline = useNetwork();
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null);
@@ -15,11 +19,36 @@ export default function Records() {
 
   useEffect(() => {
     loadRecords();
-  }, []);
+  }, [isOnline]);
 
   const loadRecords = async () => {
-    const data = await getMyRecords();
-    setRecords(data);
+    const local = await getMyRecords();
+
+    if (isOnline) {
+      try {
+        const res = await api.get("/agent/records");
+        const serverRecords = res.data.data.map((r) => ({
+          client_id: `server-${r.id}`,
+          pvc_number: r.pvc_number,
+          full_name: r.full_name,
+          created_at: r.registered_at,
+          sync_status: "synced",
+        }));
+        const localOnly = local.filter(
+          (l) =>
+            l.sync_status !== "synced" ||
+            !serverRecords.some((s) => s.pvc_number === l.pvc_number)
+        );
+        const merged = [...localOnly, ...serverRecords].sort(
+          (a, b) => new Date(b.created_at) - new Date(a.created_at)
+        );
+        setRecords(merged);
+        setLoading(false);
+        return;
+      } catch (e) {}
+    }
+
+    setRecords(local);
     setLoading(false);
   };
 
