@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import { useAuth } from "./hooks/useAuth";
+import { useAuth, api } from "./hooks/useAuth";
 import { useNetwork } from "./hooks/useNetwork";
 import { useEffect } from "react";
 import { startAutoSync } from "./services/sync";
@@ -7,6 +7,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Register from "./pages/Register";
 import Records from "./pages/Records";
+import Complaint from "./pages/Complaint";
 import OfflineBanner from "./components/OfflineBanner";
 
 function App() {
@@ -81,6 +82,10 @@ function App() {
         <Route
           path="/records"
           element={user ? <Records /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/complaint"
+          element={user ? <Complaint /> : <Navigate to="/login" />}
         />
       </Routes>
     </>

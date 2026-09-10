@@ -2,8 +2,12 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useNetwork } from "../hooks/useNetwork";
-import { getPendingCount, getConflictCount } from "../services/db";
-import { syncPendingRecords } from "../services/sync";
+import {
+  getPendingCount,
+  getConflictCount,
+  getPendingComplaintCount,
+} from "../services/db";
+import { syncPendingRecords, syncPendingComplaints } from "../services/sync";
 
 const CACHE_KEY = "cached_agent_dashboard";
 
@@ -25,14 +29,17 @@ export default function Dashboard() {
   const [localConflicts, setLocalConflicts] = useState(0);
   const [syncing, setSyncing] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  const [localPendingComplaints, setLocalPendingComplaints] = useState(0);
 
   const loadLocalCounts = useCallback(async () => {
-    const [pending, conflicts] = await Promise.all([
+    const [pending, conflicts, pendingComplaints] = await Promise.all([
       getPendingCount(),
       getConflictCount(),
+      getPendingComplaintCount(),
     ]);
     setLocalPending(pending);
     setLocalConflicts(conflicts);
+    setLocalPendingComplaints(pendingComplaints);
   }, []);
 
   const loadServerStats = useCallback(async () => {
@@ -57,7 +64,7 @@ export default function Dashboard() {
   const handleSync = async () => {
     if (!isOnline || syncing) return;
     setSyncing(true);
-    await syncPendingRecords();
+    await Promise.all([syncPendingRecords(), syncPendingComplaints()]);
     await Promise.all([loadLocalCounts(), loadServerStats()]);
     setSyncing(false);
   };
@@ -156,7 +163,7 @@ export default function Dashboard() {
             <div className="status-chip-label">Conflicts</div>
           </div>
         </div>
-        {localPending > 0 && (
+        {(localPending > 0 || localPendingComplaints > 0) && (
           <button
             className="btn btn-secondary mb-3"
             onClick={handleSync}
@@ -164,7 +171,9 @@ export default function Dashboard() {
           >
             {syncing
               ? "Syncing..."
-              : `Sync ${localPending} Record${localPending !== 1 ? "s" : ""}`}
+              : `Sync ${localPending + localPendingComplaints} Item${
+                  localPending + localPendingComplaints !== 1 ? "s" : ""
+                }`}
           </button>
         )}
 
@@ -174,6 +183,14 @@ export default function Dashboard() {
           onClick={() => navigate("/register")}
         >
           + Register Person
+        </button>
+
+        <button
+          className="btn btn-secondary mb-3"
+          onClick={() => navigate("/complaint")}
+        >
+          📢 File a Complaint
+          {localPendingComplaints > 0 && ` (${localPendingComplaints} pending)`}
         </button>
 
         <button

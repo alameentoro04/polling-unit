@@ -11,9 +11,11 @@ export default function Sidebar({ open, onClose }) {
     { to: "/analytics", label: "Analytics", icon: "📈" },
     { to: "/map", label: "Map", icon: "🗺️" },
     { to: "/registrations", label: "Registrations", icon: "📝" },
+    { to: "/complaints", label: "Complaints", icon: "📢" },
     ...(isAdmin
       ? [{ to: "/polling-units", label: "Polling Units", icon: "📍" }]
       : []),
+    ...(isAdmin ? [{ to: "/wards", label: "Wards", icon: "🏘️" }] : []),
     ...(isAdmin
       ? [
           { to: "/users", label: "User Management", icon: "👥" },

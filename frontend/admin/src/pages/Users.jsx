@@ -22,8 +22,12 @@ const emptyForm = {
 
 function CreateUserModal({ onClose, onCreated }) {
   const { api } = useAuth();
-  const { lgas, wards, loadWards } = useLocations();
+  const { lgas, wards, pollingUnits, loadWards, loadPollingUnits } =
+    useLocations();
   const [form, setForm] = useState(emptyForm);
+  const [assignLga, setAssignLga] = useState("");
+  const [assignWard, setAssignWard] = useState("");
+  const [assignPu, setAssignPu] = useState("");
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -34,7 +38,20 @@ function CreateUserModal({ onClose, onCreated }) {
     setSubmitting(true);
     setErrors({});
     try {
-      await api.post("/users", form);
+      const res = await api.post("/users", form);
+      if (form.role === "agent" && assignPu) {
+        try {
+          await api.post(`/users/${res.data.id}/assign`, {
+            polling_unit_id: assignPu,
+          });
+        } catch (assignErr) {
+          alert(
+            "User created, but assigning the polling unit failed: " +
+              (assignErr.response?.data?.message || "unknown error") +
+              ". You can assign them from the list."
+          );
+        }
+      }
       onCreated();
       onClose();
     } catch (err) {
@@ -217,10 +234,68 @@ function CreateUserModal({ onClose, onCreated }) {
           )}
 
           {form.role === "agent" && (
-            <div className="text-xs text-gray-500 mb-3">
-              Agents are assigned to a polling unit as a separate step, after
-              being created — use the "Assign" button on their row.
-            </div>
+            <>
+              <div className="text-xs text-gray-500 mb-2">
+                Optional — pick a polling unit now to assign it immediately, or
+                leave blank and assign later from the list.
+              </div>
+              <div className="form-group">
+                <label className="label">LGA</label>
+                <select
+                  className="input"
+                  value={assignLga}
+                  onChange={(e) => {
+                    setAssignLga(e.target.value);
+                    setAssignWard("");
+                    setAssignPu("");
+                    loadWards(e.target.value);
+                  }}
+                >
+                  <option value="">Select LGA...</option>
+                  {lgas.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="label">Ward</label>
+                <select
+                  className="input"
+                  value={assignWard}
+                  disabled={!assignLga}
+                  onChange={(e) => {
+                    setAssignWard(e.target.value);
+                    setAssignPu("");
+                    loadPollingUnits(e.target.value);
+                  }}
+                >
+                  <option value="">Select Ward...</option>
+                  {wards.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="label">Polling Unit</label>
+                <select
+                  className="input"
+                  value={assignPu}
+                  disabled={!assignWard}
+                  onChange={(e) => setAssignPu(e.target.value)}
+                >
+                  <option value="">Select Polling Unit...</option>
+                  {pollingUnits.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
           )}
 
           <button
@@ -357,12 +432,195 @@ function AssignAgentModal({ user, onClose, onAssigned }) {
   );
 }
 
+function EditUserModal({ user, onClose, onSaved }) {
+  const { api } = useAuth();
+  const [form, setForm] = useState({
+    full_name: user.full_name || "",
+    email: user.email || "",
+    phone: user.phone || "",
+    is_active: user.is_active,
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setError("");
+    try {
+      await api.put(`/users/${user.id}`, form);
+      onSaved();
+      onClose();
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to save changes");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <div className="card-title">Edit {user.full_name}</div>
+          <button className="modal-close" onClick={onClose}>
+            ✕
+          </button>
+        </div>
+        <form onSubmit={handleSubmit}>
+          {error && <div className="badge badge-red mb-3">{error}</div>}
+          <div className="form-group">
+            <label className="label">Full Name</label>
+            <input
+              className="input"
+              value={form.full_name}
+              onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label className="label">Email</label>
+            <input
+              type="email"
+              className="input"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
+          </div>
+          <div className="form-group">
+            <label className="label">Phone</label>
+            <input
+              className="input"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            />
+          </div>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label
+              className="label"
+              style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+            >
+              <input
+                type="checkbox"
+                checked={form.is_active}
+                onChange={(e) =>
+                  setForm({ ...form, is_active: e.target.checked })
+                }
+              />
+              Account active
+            </label>
+          </div>
+          <button
+            type="submit"
+            className="btn btn-primary w-full mt-3"
+            disabled={submitting}
+          >
+            {submitting ? "Saving..." : "Save Changes"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function ViewUserModal({ id, onClose }) {
+  const { api } = useAuth();
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    api.get(`/users/${id}`).then((res) => setUser(res.data));
+  }, [id, api]);
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <div className="card-title">{user?.full_name || "Loading…"}</div>
+          <button className="modal-close" onClick={onClose}>
+            ✕
+          </button>
+        </div>
+        {user && (
+          <>
+            <dl className="mb-3">
+              <div className="detail-row">
+                <dt>Username</dt>
+                <dd>{user.username}</dd>
+              </div>
+              <div className="detail-row">
+                <dt>Role</dt>
+                <dd className="capitalize">
+                  {user.role?.name?.replace("_", " ")}
+                </dd>
+              </div>
+              <div className="detail-row">
+                <dt>Email</dt>
+                <dd>{user.email || "—"}</dd>
+              </div>
+              <div className="detail-row">
+                <dt>Phone</dt>
+                <dd>{user.phone || "—"}</dd>
+              </div>
+              <div className="detail-row">
+                <dt>Status</dt>
+                <dd>{user.is_active ? "Active" : "Inactive"}</dd>
+              </div>
+              {user.managed_lga && (
+                <div className="detail-row">
+                  <dt>Manages LGA</dt>
+                  <dd>{user.managed_lga.name}</dd>
+                </div>
+              )}
+              {user.managed_ward && (
+                <div className="detail-row">
+                  <dt>Manages Ward</dt>
+                  <dd>{user.managed_ward.name}</dd>
+                </div>
+              )}
+            </dl>
+            {user.role?.name === "agent" && (
+              <>
+                <div className="text-xs text-gray-500 uppercase font-semibold mb-2">
+                  Assignment History
+                </div>
+                {!user.agent_assignments ||
+                user.agent_assignments.length === 0 ? (
+                  <div className="text-sm text-gray-400">
+                    Never been assigned to a polling unit.
+                  </div>
+                ) : (
+                  user.agent_assignments.map((a) => (
+                    <div className="detail-row" key={a.id}>
+                      <dt>
+                        {a.polling_unit?.name} ({a.polling_unit?.ward?.name},{" "}
+                        {a.polling_unit?.ward?.lga?.name})
+                      </dt>
+                      <dd>
+                        {new Date(a.assigned_at).toLocaleDateString()} –{" "}
+                        {a.unassigned_at
+                          ? new Date(a.unassigned_at).toLocaleDateString()
+                          : "Present"}
+                      </dd>
+                    </div>
+                  ))
+                )}
+              </>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function Users() {
   const { api } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [assigning, setAssigning] = useState(null);
+  const [editing, setEditing] = useState(null);
+  const [viewingId, setViewingId] = useState(null);
   const [roleFilter, setRoleFilter] = useState("");
 
   useEffect(() => {
@@ -377,9 +635,14 @@ export default function Users() {
     setLoading(false);
   };
 
-  const handleDeactivate = async (id) => {
-    if (!confirm("Deactivate this user?")) return;
-    await api.post(`/users/${id}/deactivate`);
+  const handleDelete = async (u) => {
+    if (
+      !confirm(
+        `Delete ${u.full_name}? This deactivates their account (their registration history is kept, not erased) — they'll no longer be able to log in.`
+      )
+    )
+      return;
+    await api.delete(`/users/${u.id}`);
     fetchUsers();
   };
 
@@ -447,6 +710,18 @@ export default function Users() {
                     </span>
                   </td>
                   <td className="flex gap-2">
+                    <button
+                      className="btn btn-sm btn-secondary"
+                      onClick={() => setViewingId(u.id)}
+                    >
+                      View
+                    </button>
+                    <button
+                      className="btn btn-sm btn-secondary"
+                      onClick={() => setEditing(u)}
+                    >
+                      Edit
+                    </button>
                     {u.role?.name === "agent" && u.is_active && (
                       <button
                         className="btn btn-sm btn-secondary"
@@ -458,9 +733,9 @@ export default function Users() {
                     {u.is_active && (
                       <button
                         className="btn btn-sm btn-danger"
-                        onClick={() => handleDeactivate(u.id)}
+                        onClick={() => handleDelete(u)}
                       >
-                        Deactivate
+                        Delete
                       </button>
                     )}
                   </td>
@@ -483,6 +758,16 @@ export default function Users() {
           onClose={() => setAssigning(null)}
           onAssigned={fetchUsers}
         />
+      )}
+      {editing && (
+        <EditUserModal
+          user={editing}
+          onClose={() => setEditing(null)}
+          onSaved={fetchUsers}
+        />
+      )}
+      {viewingId && (
+        <ViewUserModal id={viewingId} onClose={() => setViewingId(null)} />
       )}
     </div>
   );

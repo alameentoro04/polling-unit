@@ -13,6 +13,8 @@ const Registrations = lazy(() => import("./pages/Registrations"));
 const Import = lazy(() => import("./pages/Import"));
 const Users = lazy(() => import("./pages/Users"));
 const PollingUnits = lazy(() => import("./pages/PollingUnits"));
+const Wards = lazy(() => import("./pages/Wards"));
+const Complaints = lazy(() => import("./pages/Complaints"));
 const AuditLogs = lazy(() => import("./pages/AuditLogs"));
 const SyncConflicts = lazy(() => import("./pages/SyncConflicts"));
 const AgentPerformance = lazy(() => import("./pages/AgentPerformance"));
@@ -25,6 +27,10 @@ function RouteFallback() {
 }
 
 function AppLayout({ children }) {
+  // Sidebar visibility only matters below the mobile breakpoint (see
+  // index.css) — on desktop the sidebar is always visible and this state
+  // is simply unused. Before this, the sidebar had no way to reopen once
+  // hidden on a narrow screen; there was no toggle at all.
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
@@ -102,6 +108,14 @@ function App() {
               }
             />
             <Route
+              path="/complaints"
+              element={
+                <ErrorBoundary>
+                  <Complaints />
+                </ErrorBoundary>
+              }
+            />
+            <Route
               path="/import"
               element={
                 isAdmin ? (
@@ -143,6 +157,18 @@ function App() {
                 isAdmin ? (
                   <ErrorBoundary>
                     <PollingUnits />
+                  </ErrorBoundary>
+                ) : (
+                  <Navigate to="/" />
+                )
+              }
+            />
+            <Route
+              path="/wards"
+              element={
+                isAdmin ? (
+                  <ErrorBoundary>
+                    <Wards />
                   </ErrorBoundary>
                 ) : (
                   <Navigate to="/" />

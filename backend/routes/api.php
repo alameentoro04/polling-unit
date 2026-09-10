@@ -6,8 +6,10 @@ use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\RegistrationController;
 use App\Http\Controllers\Api\SyncController;
 use App\Http\Controllers\Api\ImportExportController;
+use App\Http\Controllers\Api\ComplaintController;
 use App\Http\Controllers\Api\MapController;
 use App\Http\Controllers\Api\PollingUnitController;
+use App\Http\Controllers\Api\WardController;
 use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\FormFieldController;
 use App\Http\Controllers\Api\AnalyticsController;
@@ -46,6 +48,7 @@ Route::middleware(['auth:sanctum', ScopeDataAccess::class])->group(function () {
         Route::get('/agent/check-pvc', [RegistrationController::class, 'checkPvc'])->middleware('throttle:60,1');
         Route::post('/agent/register', [RegistrationController::class, 'storeOffline'])->middleware('throttle:30,1');
         Route::post('/agent/upload-photo', [RegistrationController::class, 'uploadPhoto'])->middleware('throttle:30,1');
+        Route::post('/agent/complaints/sync', [ComplaintController::class, 'sync'])->middleware('throttle:30,1');
         Route::post('/agent/heartbeat', [AuthController::class, 'heartbeat']);
         Route::post('/sync/push', [SyncController::class, 'push'])->middleware('throttle:30,1');
         Route::get('/sync/status', [SyncController::class, 'status']);
@@ -65,10 +68,19 @@ Route::middleware(['auth:sanctum', ScopeDataAccess::class])->group(function () {
         Route::get('/registrations/{id}', [RegistrationController::class, 'show']);
         Route::get('/search', [RegistrationController::class, 'search'])->middleware('throttle:30,1');
 
+        Route::get('/complaints', [ComplaintController::class, 'index']);
+        Route::put('/complaints/{id}/status', [ComplaintController::class, 'updateStatus']);
+
         Route::get('/map/polling-units', [MapController::class, 'pollingUnits']);
         Route::get('/map/polling-units/{id}', [MapController::class, 'pollingUnitDetail']);
+
+        // Polling unit management (list/detail) — create/edit/delete are
+        // admin-only, in the group below.
         Route::get('/polling-units', [PollingUnitController::class, 'index']);
         Route::get('/polling-units/{id}', [PollingUnitController::class, 'show']);
+
+        // Ward listing for the Wards management page. Named /wards here
+        Route::get('/wards', [WardController::class, 'index']);
 
         // Analytics
         Route::get('/analytics/gender', [AnalyticsController::class, 'genderBreakdown']);
@@ -93,6 +105,10 @@ Route::middleware(['auth:sanctum', ScopeDataAccess::class])->group(function () {
         Route::post('/polling-units', [PollingUnitController::class, 'store']);
         Route::put('/polling-units/{id}', [PollingUnitController::class, 'update']);
         Route::delete('/polling-units/{id}', [PollingUnitController::class, 'destroy']);
+
+        Route::post('/wards', [WardController::class, 'store']);
+        Route::put('/wards/{id}', [WardController::class, 'update']);
+        Route::delete('/wards/{id}', [WardController::class, 'destroy']);
 
         Route::get('/audit-logs', [AdminController::class, 'auditLogs']);
         Route::get('/sync-conflicts', [SyncController::class, 'conflicts']);

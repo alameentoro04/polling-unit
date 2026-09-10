@@ -1,10 +1,18 @@
 import { api } from "../hooks/useAuth";
-import { getSyncQueue, markSynced, markConflict, updateSyncRetry } from "./db";
+import {
+  getSyncQueue,
+  markSynced,
+  markConflict,
+  updateSyncRetry,
+  getComplaintQueue,
+  markComplaintSynced,
+  updateComplaintSyncRetry,
+} from "./db";
 import { dataUrlToBlob } from "./image";
 
 async function resolvePhoto(payload) {
   if (!payload.photograph_url || !payload.photograph_url.startsWith("data:")) {
-    return payload;
+    return payload; // no photo, or already a real URL from a previous attempt
   }
   const blob = await dataUrlToBlob(payload.photograph_url);
   const formData = new FormData();
@@ -62,10 +70,40 @@ export async function syncPendingRecords() {
   return { synced, conflicts, failed };
 }
 
+export async function syncPendingComplaints() {
+  const pending = await getComplaintQueue();
+  if (pending.length === 0) return { synced: 0, failed: 0 };
+
+  let synced = 0,
+    failed = 0;
+
+  try {
+    const complaints = pending.map((item) => item.payload);
+    const res = await api.post("/agent/complaints/sync", { complaints });
+    for (const result of res.data.results) {
+      if (result.status === "synced" || result.status === "already_synced") {
+        await markComplaintSynced(result.client_id);
+        synced++;
+      } else {
+        await updateComplaintSyncRetry(result.client_id);
+        failed++;
+      }
+    }
+  } catch (error) {
+    for (const item of pending) {
+      await updateComplaintSyncRetry(item.client_id);
+      failed++;
+    }
+  }
+
+  return { synced, failed };
+}
+
 export function startAutoSync() {
   const interval = setInterval(() => {
     if (navigator.onLine) {
       syncPendingRecords();
+      syncPendingComplaints();
     }
   }, 30000);
   return () => clearInterval(interval);

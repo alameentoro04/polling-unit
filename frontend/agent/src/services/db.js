@@ -9,6 +9,63 @@ db.version(1).stores({
   metadata: "key",
 });
 
+db.version(2).stores({
+  complaints: "++id, client_id, sync_status, submitted_at",
+  complaintQueue: "++id, client_id, status, retry_count, last_retry",
+});
+
+export async function storeComplaint(data) {
+  const clientId = crypto.randomUUID();
+  const record = {
+    client_id: clientId,
+    ...data,
+    sync_status: "pending",
+    submitted_at: new Date().toISOString(),
+  };
+  await db.complaints.add(record);
+  await db.complaintQueue.add({
+    client_id: clientId,
+    payload: record,
+    status: "pending",
+    retry_count: 0,
+    last_retry: null,
+  });
+  return record;
+}
+
+export async function getPendingComplaintCount() {
+  return await db.complaints.where("sync_status").equals("pending").count();
+}
+
+export async function getComplaintQueue() {
+  return await db.complaintQueue.where("status").equals("pending").toArray();
+}
+
+export async function markComplaintSynced(clientId) {
+  await db.complaints
+    .where("client_id")
+    .equals(clientId)
+    .modify({ sync_status: "synced" });
+  await db.complaintQueue.where("client_id").equals(clientId).delete();
+}
+
+export async function updateComplaintSyncRetry(clientId) {
+  const item = await db.complaintQueue
+    .where("client_id")
+    .equals(clientId)
+    .first();
+  if (item) {
+    await db.complaintQueue.update(item.id, {
+      retry_count: item.retry_count + 1,
+      last_retry: new Date().toISOString(),
+    });
+  }
+}
+
+export async function getMyComplaints() {
+  return await db.complaints.reverse().sortBy("submitted_at");
+}
+
 export async function findLocalByPvc(pvc) {
   return await db.registrations
     .where("pvc_number")
