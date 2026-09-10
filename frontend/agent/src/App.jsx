@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
+import { api } from "./hooks/useAuth";
 import { useNetwork } from "./hooks/useNetwork";
 import { useEffect } from "react";
 import { startAutoSync } from "./services/sync";
@@ -7,7 +8,9 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Register from "./pages/Register";
 import Records from "./pages/Records";
+import Profile from "./pages/Profile";
 import OfflineBanner from "./components/OfflineBanner";
+import BottomNav from "./components/BottomNav";
 
 function App() {
   const { user, loading } = useAuth();
@@ -65,24 +68,31 @@ function App() {
   return (
     <>
       <OfflineBanner isOnline={isOnline} />
-      <Routes>
-        <Route
-          path="/login"
-          element={!user ? <Login /> : <Navigate to="/" />}
-        />
-        <Route
-          path="/"
-          element={user ? <Dashboard /> : <Navigate to="/login" />}
-        />
-        <Route
-          path="/register"
-          element={user ? <Register /> : <Navigate to="/login" />}
-        />
-        <Route
-          path="/records"
-          element={user ? <Records /> : <Navigate to="/login" />}
-        />
-      </Routes>
+      <div className={user ? "pb-28" : ""}>
+        <Routes>
+          <Route
+            path="/login"
+            element={!user ? <Login /> : <Navigate to="/" />}
+          />
+          <Route
+            path="/"
+            element={user ? <Dashboard /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/register"
+            element={user ? <Register /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/records"
+            element={user ? <Records /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/profile"
+            element={user ? <Profile /> : <Navigate to="/login" />}
+          />
+        </Routes>
+      </div>
+      {user && <BottomNav />}
     </>
   );
 }
