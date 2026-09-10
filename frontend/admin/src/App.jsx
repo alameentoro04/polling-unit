@@ -27,10 +27,6 @@ function RouteFallback() {
 }
 
 function AppLayout({ children }) {
-  // Sidebar visibility only matters below the mobile breakpoint (see
-  // index.css) — on desktop the sidebar is always visible and this state
-  // is simply unused. Before this, the sidebar had no way to reopen once
-  // hidden on a narrow screen; there was no toggle at all.
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
@@ -82,130 +78,132 @@ function App() {
       ))}
       <AppLayout>
         <Suspense fallback={<RouteFallback />}>
-          <Routes>
-            <Route
-              path="/"
-              element={
-                <ErrorBoundary>
-                  <Dashboard />
-                </ErrorBoundary>
-              }
-            />
-            <Route
-              path="/map"
-              element={
-                <ErrorBoundary>
-                  <Map />
-                </ErrorBoundary>
-              }
-            />
-            <Route
-              path="/registrations"
-              element={
-                <ErrorBoundary>
-                  <Registrations />
-                </ErrorBoundary>
-              }
-            />
-            <Route
-              path="/complaints"
-              element={
-                <ErrorBoundary>
-                  <Complaints />
-                </ErrorBoundary>
-              }
-            />
-            <Route
-              path="/import"
-              element={
-                isAdmin ? (
+          <div key={location.pathname} className="page-fade">
+            <Routes>
+              <Route
+                path="/"
+                element={
                   <ErrorBoundary>
-                    <Import />
+                    <Dashboard />
                   </ErrorBoundary>
-                ) : (
-                  <Navigate to="/" />
-                )
-              }
-            />
-            <Route
-              path="/conflicts"
-              element={
-                isAdmin ? (
+                }
+              />
+              <Route
+                path="/map"
+                element={
                   <ErrorBoundary>
-                    <SyncConflicts />
+                    <Map />
                   </ErrorBoundary>
-                ) : (
-                  <Navigate to="/" />
-                )
-              }
-            />
-            <Route
-              path="/users"
-              element={
-                isAdmin ? (
+                }
+              />
+              <Route
+                path="/registrations"
+                element={
                   <ErrorBoundary>
-                    <Users />
+                    <Registrations />
                   </ErrorBoundary>
-                ) : (
-                  <Navigate to="/" />
-                )
-              }
-            />
-            <Route
-              path="/polling-units"
-              element={
-                isAdmin ? (
+                }
+              />
+              <Route
+                path="/complaints"
+                element={
                   <ErrorBoundary>
-                    <PollingUnits />
+                    <Complaints />
                   </ErrorBoundary>
-                ) : (
-                  <Navigate to="/" />
-                )
-              }
-            />
-            <Route
-              path="/wards"
-              element={
-                isAdmin ? (
+                }
+              />
+              <Route
+                path="/import"
+                element={
+                  isAdmin ? (
+                    <ErrorBoundary>
+                      <Import />
+                    </ErrorBoundary>
+                  ) : (
+                    <Navigate to="/" />
+                  )
+                }
+              />
+              <Route
+                path="/conflicts"
+                element={
+                  isAdmin ? (
+                    <ErrorBoundary>
+                      <SyncConflicts />
+                    </ErrorBoundary>
+                  ) : (
+                    <Navigate to="/" />
+                  )
+                }
+              />
+              <Route
+                path="/users"
+                element={
+                  isAdmin ? (
+                    <ErrorBoundary>
+                      <Users />
+                    </ErrorBoundary>
+                  ) : (
+                    <Navigate to="/" />
+                  )
+                }
+              />
+              <Route
+                path="/polling-units"
+                element={
+                  isAdmin ? (
+                    <ErrorBoundary>
+                      <PollingUnits />
+                    </ErrorBoundary>
+                  ) : (
+                    <Navigate to="/" />
+                  )
+                }
+              />
+              <Route
+                path="/wards"
+                element={
+                  isAdmin ? (
+                    <ErrorBoundary>
+                      <Wards />
+                    </ErrorBoundary>
+                  ) : (
+                    <Navigate to="/" />
+                  )
+                }
+              />
+              <Route path="/analytics" element={<Analytics />} />
+              <Route
+                path="/settings"
+                element={isAdmin ? <Settings /> : <Navigate to="/" />}
+              />
+              <Route
+                path="/form-builder"
+                element={isAdmin ? <FormBuilder /> : <Navigate to="/" />}
+              />
+              <Route
+                path="/agents"
+                element={
                   <ErrorBoundary>
-                    <Wards />
+                    <AgentPerformance />
                   </ErrorBoundary>
-                ) : (
-                  <Navigate to="/" />
-                )
-              }
-            />
-            <Route path="/analytics" element={<Analytics />} />
-            <Route
-              path="/settings"
-              element={isAdmin ? <Settings /> : <Navigate to="/" />}
-            />
-            <Route
-              path="/form-builder"
-              element={isAdmin ? <FormBuilder /> : <Navigate to="/" />}
-            />
-            <Route
-              path="/agents"
-              element={
-                <ErrorBoundary>
-                  <AgentPerformance />
-                </ErrorBoundary>
-              }
-            />
-            <Route
-              path="/audit-logs"
-              element={
-                isAdmin ? (
-                  <ErrorBoundary>
-                    <AuditLogs />
-                  </ErrorBoundary>
-                ) : (
-                  <Navigate to="/" />
-                )
-              }
-            />
-            <Route path="*" element={<Navigate to="/" />} />
-          </Routes>
+                }
+              />
+              <Route
+                path="/audit-logs"
+                element={
+                  isAdmin ? (
+                    <ErrorBoundary>
+                      <AuditLogs />
+                    </ErrorBoundary>
+                  ) : (
+                    <Navigate to="/" />
+                  )
+                }
+              />
+              <Route path="*" element={<Navigate to="/" />} />
+            </Routes>
+          </div>
         </Suspense>
       </AppLayout>
     </>

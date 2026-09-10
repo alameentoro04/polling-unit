@@ -74,6 +74,23 @@ class ImportExportController extends Controller
                     continue;
                 }
 
+                $lat = $row['latitude'] ?? null;
+                $lng = $row['longitude'] ?? null;
+                if ($lat !== null && $lat !== '' && (!is_numeric($lat) || $lat < 8.5 || $lat > 13.3)) {
+                    $results['invalid_rows']++;
+                    $results['errors'][] = "Row {$rowNum}: Latitude '{$lat}' is outside Bauchi State — leave blank if unknown rather than guessing.";
+                    continue;
+                }
+                if ($lng !== null && $lng !== '' && (!is_numeric($lng) || $lng < 8.0 || $lng > 11.6)) {
+                    $results['invalid_rows']++;
+                    $results['errors'][] = "Row {$rowNum}: Longitude '{$lng}' is outside Bauchi State — leave blank if unknown rather than guessing.";
+                    continue;
+                }
+
+                // Check for duplicate polling unit code (trim first — Excel
+                // exports frequently have stray whitespace, and comparing
+                // untrimmed against the trimmed value stored on create()
+                // below meant some real duplicates slipped through).
                 $code = trim($row['polling_unit_code']);
                 $existing = PollingUnit::where('code', $code)->first();
                 if ($existing) {
@@ -83,6 +100,11 @@ class ImportExportController extends Controller
                     continue;
                 }
 
+                // Find or create LGA. Was hardcoded to state_id => 1, which
+                // happens to work only because Bauchi is currently the
+                // only (and therefore first-created) state — it would
+                // silently attach LGAs to the wrong state the moment a
+                // second state ever existed.
                 $state = \App\Models\State::firstOrCreate(
                     ['name' => 'Bauchi'],
                     ['code' => 'BA']
@@ -225,7 +247,7 @@ class ImportExportController extends Controller
             }
             fclose($handle);
         } else {
-
+ 
             return null;
         }
 

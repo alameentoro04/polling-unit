@@ -19,6 +19,11 @@ let DefaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
+const BAUCHI_BOUNDS = [
+  [8.7, 8.1],
+  [13.2, 11.5],
+];
+
 const statusColors = {
   not_started: "#9ca3af",
   in_progress: "#f59e0b",
@@ -58,28 +63,41 @@ function coloredDivIcon(color) {
 
 function ClusteredMarkers({ points, onSelect }) {
   const map = useMap();
-  const clusterRef = useRef(null);
+  const clusterGroupRef = useRef(null);
 
+  // Initialize MarkerClusterGroup once per map lifespan
   useEffect(() => {
     const clusterGroup = L.markerClusterGroup({
       chunkedLoading: true,
       maxClusterRadius: 60,
       spiderfyOnMaxZoom: true,
     });
-    clusterRef.current = clusterGroup;
+
+    clusterGroupRef.current = clusterGroup;
     map.addLayer(clusterGroup);
+
     return () => {
       map.removeLayer(clusterGroup);
     };
   }, [map]);
 
+  // Update layer content safely when data changes
   useEffect(() => {
-    const clusterGroup = clusterRef.current;
+    const clusterGroup = clusterGroupRef.current;
     if (!clusterGroup) return;
 
     clusterGroup.clearLayers();
 
-    const markers = points.map((pu) => {
+    // Filter out invalid coordinates
+    const validPoints = points.filter(
+      (pu) =>
+        pu.latitude != null &&
+        pu.longitude != null &&
+        !isNaN(pu.latitude) &&
+        !isNaN(pu.longitude)
+    );
+
+    const markers = validPoints.map((pu) => {
       const marker = L.marker([pu.latitude, pu.longitude], {
         icon: coloredDivIcon(
           statusColors[pu.status] || statusColors.not_started
@@ -102,11 +120,11 @@ function ClusteredMarkers({ points, onSelect }) {
             pu.ward
           )}, ${escapeHtml(pu.lga)}</div>
           <div style="margin-top:6px;display:flex;justify-content:space-between;font-size:11px;">
-            <span>Target: ${pu.target}</span>
-            <span>Registered: ${pu.registered}</span>
+            <span>Target: ${pu.target ?? 0}</span>
+            <span>Registered: ${pu.registered ?? 0}</span>
           </div>
           <div style="margin-top:4px;font-size:11px;font-weight:600;">${
-            pu.completion
+            pu.completion ?? 0
           }% — ${statusLabels[pu.status] || ""}</div>
           ${approxNote}
         </div>
@@ -118,13 +136,13 @@ function ClusteredMarkers({ points, onSelect }) {
 
     clusterGroup.addLayers(markers);
 
-    if (markers.length > 0) {
+    if (validPoints.length > 0) {
       const bounds = L.latLngBounds(
-        points.map((p) => [p.latitude, p.longitude])
+        validPoints.map((p) => [p.latitude, p.longitude])
       );
-      map.fitBounds(bounds, { padding: [50, 50] });
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
     }
-  }, [points]);
+  }, [points, map, onSelect]);
 
   return null;
 }
@@ -175,7 +193,7 @@ export default function Map() {
       const res = await api.get(`/map/polling-units?${params}`);
       setPollingUnits(res.data);
     } catch (e) {
-      console.error(e);
+      console.error("Failed to load polling units:", e);
     } finally {
       setLoading(false);
     }
@@ -186,11 +204,11 @@ export default function Map() {
       const res = await api.get(`/map/polling-units/${id}`);
       setSelectedPU(res.data);
     } catch (e) {
-      console.error(e);
+      console.error("Failed to fetch polling unit details:", e);
     }
   };
 
-  const center = [10.3158, 9.8442]; // Bauchi State center
+  const center = [10.3158, 9.8442];
 
   return (
     <div>
@@ -338,6 +356,9 @@ export default function Map() {
               <MapContainer
                 center={center}
                 zoom={9}
+                minZoom={8}
+                maxBounds={BAUCHI_BOUNDS}
+                maxBoundsViscosity={1.0}
                 style={{ height: "100%", width: "100%" }}
               >
                 <TileLayer
@@ -358,7 +379,6 @@ export default function Map() {
             <div className="card">
               <div className="card-header">
                 <div className="card-title">PU Details</div>
-
                 <button
                   onClick={() => setSelectedPU(null)}
                   className="text-gray-400 hover:text-gray-600"
@@ -394,19 +414,21 @@ export default function Map() {
                   Progress
                 </div>
                 <div className="flex justify-between text-sm mt-1">
-                  <span>Target: {selectedPU.target}</span>
-                  <span className="font-semibold">{selectedPU.registered}</span>
+                  <span>Target: {selectedPU.target ?? 0}</span>
+                  <span className="font-semibold">
+                    {selectedPU.registered ?? 0}
+                  </span>
                 </div>
                 <div className="progress-bar mt-1">
                   <div
                     className="progress-bar-fill"
                     style={{
-                      width: `${Math.min(selectedPU.completion, 100)}%`,
+                      width: `${Math.min(selectedPU.completion ?? 0, 100)}%`,
                     }}
                   />
                 </div>
                 <div className="text-xs text-gray-500 mt-1">
-                  {selectedPU.completion}% complete
+                  {selectedPU.completion ?? 0}% complete
                 </div>
               </div>
 

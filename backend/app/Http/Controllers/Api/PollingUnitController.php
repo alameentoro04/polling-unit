@@ -85,8 +85,8 @@ class PollingUnitController extends Controller
             'code' => 'required|string|max:50|unique:polling_units,code',
             'name' => 'required|string|max:255',
             'location' => 'nullable|string',
-            'latitude' => 'nullable|numeric|between:-90,90',
-            'longitude' => 'nullable|numeric|between:-180,180',
+            'latitude' => 'nullable|numeric|between:8.5,13.3',
+            'longitude' => 'nullable|numeric|between:8.0,11.6',
             'target_count' => 'nullable|integer|min:1',
         ]);
 
@@ -120,8 +120,8 @@ class PollingUnitController extends Controller
             'code' => 'sometimes|required|string|max:50|unique:polling_units,code,' . $pu->id,
             'name' => 'sometimes|required|string|max:255',
             'location' => 'nullable|string',
-            'latitude' => 'nullable|numeric|between:-90,90',
-            'longitude' => 'nullable|numeric|between:-180,180',
+            'latitude' => 'nullable|numeric|between:8.5,13.3',
+            'longitude' => 'nullable|numeric|between:8.0,11.6',
             'target_count' => 'sometimes|integer|min:1',
             'is_active' => 'sometimes|boolean',
         ]);

@@ -1,23 +1,11 @@
 export default function SkeletonCard() {
   return (
-    <div className="card" style={{ animation: "pulse 2s infinite" }}>
+    <div className="card">
       <div
-        style={{
-          height: 16,
-          background: "#e5e7eb",
-          borderRadius: 4,
-          width: "60%",
-          marginBottom: 12,
-        }}
+        className="skeleton-block"
+        style={{ height: 14, width: "55%", marginBottom: 14 }}
       />
-      <div
-        style={{
-          height: 32,
-          background: "#e5e7eb",
-          borderRadius: 4,
-          width: "40%",
-        }}
-      />
+      <div className="skeleton-block" style={{ height: 30, width: "40%" }} />
     </div>
   );
 }

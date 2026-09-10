@@ -11,36 +11,20 @@ export default function Toast({
     return () => clearTimeout(timer);
   }, [duration, onClose]);
 
-  const colors = {
-    info: "#2563eb",
-    success: "#16a34a",
-    warning: "#f59e0b",
-    error: "#dc2626",
-  };
+  const colorVar = {
+    info: "var(--info)",
+    success: "var(--success)",
+    warning: "var(--warning)",
+    error: "var(--danger)",
+  }[type];
 
   return (
     <div
-      style={{
-        position: "fixed",
-        top: 20,
-        right: 20,
-        background: "white",
-        borderLeft: `4px solid ${colors[type]}`,
-        padding: "1rem 1.25rem",
-        borderRadius: "0.5rem",
-        boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-        zIndex: 9999,
-        minWidth: 280,
-        animation: "slideIn 0.3s ease",
-      }}
+      className="toast"
+      style={{ borderLeftColor: colorVar }}
     >
-      <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "#1f2937" }}>
-        {message}
-      </div>
-      <button
-        onClick={onClose}
-        style={{ position: "absolute", top: 8, right: 8, color: "#9ca3af" }}
-      >
+      <div className="toast-message">{message}</div>
+      <button onClick={onClose} className="toast-close" aria-label="Dismiss">
         ✕
       </button>
     </div>

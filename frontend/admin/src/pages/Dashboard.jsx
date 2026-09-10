@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 import SkeletonCard from "../components/SkeletonCard";
+import AnimatedNumber from "../components/AnimatedNumber";
 import {
   BarChart,
   Bar,
@@ -34,6 +35,7 @@ export default function Dashboard() {
     date_to: "",
   });
 
+  // Location dropdown data (separate from chart data)
   const [allLgas, setAllLgas] = useState([]);
   const [wards, setWards] = useState([]);
   const [pollingUnits, setPollingUnits] = useState([]);
@@ -212,43 +214,57 @@ export default function Dashboard() {
         </button>
       </div>
 
-      {/* Summary cards */}
       <div className="summary-grid">
         <div className="summary-card">
           <div className="summary-label">Total LGAs</div>
-          <div className="summary-value">{summary.total_lgas}</div>
+          <div className="summary-value">
+            <AnimatedNumber value={summary.total_lgas} />
+          </div>
         </div>
         <div className="summary-card">
           <div className="summary-label">Total Wards</div>
-          <div className="summary-value">{summary.total_wards}</div>
+          <div className="summary-value">
+            <AnimatedNumber value={summary.total_wards} />
+          </div>
         </div>
         <div className="summary-card info">
           <div className="summary-label">Total Registered</div>
           <div className="summary-value">
-            {summary.total_registered?.toLocaleString()}
+            <AnimatedNumber value={summary.total_registered} />
           </div>
         </div>
         <div className="summary-card">
           <div className="summary-label">Target</div>
           <div className="summary-value">
-            {summary.total_target?.toLocaleString()}
+            <AnimatedNumber value={summary.total_target} />
           </div>
         </div>
         <div className="summary-card success">
           <div className="summary-label">Completion</div>
-          <div className="summary-value">{summary.completion_percentage}%</div>
+          <div className="summary-value">
+            <AnimatedNumber
+              value={summary.completion_percentage}
+              format={(n) => `${n}%`}
+            />
+          </div>
         </div>
         <div className="summary-card warning">
           <div className="summary-label">Polling Units</div>
-          <div className="summary-value">{summary.total_polling_units}</div>
+          <div className="summary-value">
+            <AnimatedNumber value={summary.total_polling_units} />
+          </div>
         </div>
         <div className="summary-card danger">
           <div className="summary-label">Agents</div>
-          <div className="summary-value">{summary.total_agents}</div>
+          <div className="summary-value">
+            <AnimatedNumber value={summary.total_agents} />
+          </div>
         </div>
         <div className="summary-card info">
           <div className="summary-label">Completed PUs</div>
-          <div className="summary-value">{summary.completed_polling_units}</div>
+          <div className="summary-value">
+            <AnimatedNumber value={summary.completed_polling_units} />
+          </div>
         </div>
       </div>
 
