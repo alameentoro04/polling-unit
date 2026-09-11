@@ -16,7 +16,7 @@ class User extends Authenticatable
     protected $fillable = [
         'role_id', 'username', 'password_hash', 'full_name',
         'email', 'phone', 'is_active', 'last_login_at', 'last_login_ip',
-        'managed_lga_id', 'managed_ward_id',
+        'managed_lga_id', 'managed_ward_id', 'last_seen_at',
     ];
 
     protected $hidden = ['password_hash'];
@@ -24,6 +24,7 @@ class User extends Authenticatable
     protected $casts = [
         'is_active' => 'boolean',
         'last_login_at' => 'datetime',
+        'last_seen_at' => 'datetime',
     ];
 
     public function getAuthPassword()

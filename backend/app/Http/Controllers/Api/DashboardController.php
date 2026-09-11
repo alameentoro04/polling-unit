@@ -74,6 +74,16 @@ class DashboardController extends Controller
     }
     $openComplaints = $complaintsQuery->count();
 
+    $pendingSyncQuery = \App\Models\SyncQueue::where('status', 'failed');
+    if (($scope['type'] ?? 'all') === 'agent' && !empty($scope['registered_by'])) {
+        $pendingSyncQuery->where('user_id', $scope['registered_by']);
+    }
+    $pendingSync = $pendingSyncQuery->count();
+
+    $conflictsQuery = Registration::query()->where('sync_status', 'conflict')->where('is_deleted', false);
+    $this->applyScope($conflictsQuery, $scope);
+    $conflicts = $conflictsQuery->count();
+
     return response()->json([
         'total_lgas' => $totalLgas,
         'total_wards' => $totalWards,
@@ -84,8 +94,122 @@ class DashboardController extends Controller
         'completion_percentage' => $completion,
         'completed_polling_units' => $completedPUs,
         'open_complaints' => $openComplaints,
+        'pending_sync' => $pendingSync,
+        'conflicts' => $conflicts,
     ]);
 }
+
+    public function activityFeed(Request $request)
+    {
+        $limit = min((int) $request->input('limit', 20), 50);
+
+        $logs = \App\Models\AuditLog::with('actor')
+            ->whereIn('action', [
+                'REGISTRATION_CREATED', 'SYNC_CONFLICT', 'DUPLICATE_DETECTED',
+                'COMPLAINT_SUBMITTED', 'POLLING_UNIT_TARGET_REACHED',
+                'AGENT_ASSIGNED', 'AGENT_REASSIGNED', 'WARD_CREATED',
+                'POLLING_UNIT_CREATED', 'EXCEL_IMPORTED', 'SYNC_CONFLICT_RESOLVED',
+                'COMPLAINT_STATUS_UPDATED',
+            ])
+            ->where('created_at', '>=', now()->subHours(24))
+            ->orderByDesc('created_at')
+            ->limit(300) // raw rows before aggregation, not the final feed size
+            ->get();
+
+        $items = [];
+
+        $registrationLogs = $logs->where('action', 'REGISTRATION_CREATED');
+        $regBuckets = $registrationLogs->groupBy(function ($log) {
+            return $log->actor_id . '|' . floor($log->created_at->timestamp / 600);
+        });
+        foreach ($regBuckets as $bucket) {
+            $actor = $bucket->first()->actor;
+            $items[] = [
+                'id' => 'reg-' . $bucket->first()->id,
+                'type' => 'registration',
+                'message' => ($actor?->full_name ?? 'An agent') . ' synced ' . $bucket->count() . ' registration' . ($bucket->count() === 1 ? '' : 's'),
+                'timestamp' => $bucket->max('created_at'),
+            ];
+        }
+
+        $conflictLogs = $logs->whereIn('action', ['SYNC_CONFLICT', 'DUPLICATE_DETECTED']);
+        $conflictBuckets = $conflictLogs->groupBy(function ($log) {
+            return floor($log->created_at->timestamp / 600);
+        });
+        foreach ($conflictBuckets as $bucket) {
+            $count = $bucket->where('action', 'DUPLICATE_DETECTED')->count() ?: $bucket->count();
+            $items[] = [
+                'id' => 'conflict-' . $bucket->first()->id,
+                'type' => 'conflict',
+                'message' => $count . ' registration conflict' . ($count === 1 ? '' : 's') . ' detected',
+                'timestamp' => $bucket->max('created_at'),
+            ];
+        }
+
+        foreach ($logs->where('action', 'COMPLAINT_SUBMITTED') as $log) {
+            $items[] = [
+                'id' => 'complaint-' . $log->id,
+                'type' => 'complaint',
+                'message' => 'New complaint from ' . ($log->actor?->full_name ?? 'an agent'),
+                'timestamp' => $log->created_at,
+            ];
+        }
+
+        foreach ($logs->where('action', 'POLLING_UNIT_TARGET_REACHED') as $log) {
+            $name = $log->after_state['name'] ?? $log->after_state['code'] ?? 'A polling unit';
+            $items[] = [
+                'id' => 'target-' . $log->id,
+                'type' => 'target',
+                'message' => $name . ' reached its target',
+                'timestamp' => $log->created_at,
+            ];
+        }
+
+        foreach ($logs->whereIn('action', ['AGENT_ASSIGNED', 'AGENT_REASSIGNED']) as $log) {
+            $agentName = $log->after_state['user']['full_name'] ?? 'An agent';
+            $puName = $log->after_state['polling_unit']['name'] ?? 'a polling unit';
+            $items[] = [
+                'id' => 'assign-' . $log->id,
+                'type' => 'assignment',
+                'message' => $agentName . ' assigned to ' . $puName,
+                'timestamp' => $log->created_at,
+            ];
+        }
+
+        $labels = [
+            'WARD_CREATED' => 'A new ward was added',
+            'POLLING_UNIT_CREATED' => 'A new polling unit was added',
+            'EXCEL_IMPORTED' => 'Polling unit data imported from Excel',
+            'SYNC_CONFLICT_RESOLVED' => 'A sync conflict was resolved',
+            'COMPLAINT_STATUS_UPDATED' => 'A complaint status was updated',
+        ];
+        foreach ($logs->whereIn('action', array_keys($labels)) as $log) {
+            $items[] = [
+                'id' => 'misc-' . $log->id,
+                'type' => 'info',
+                'message' => $labels[$log->action] . ($log->actor ? ' by ' . $log->actor->full_name : ''),
+                'timestamp' => $log->created_at,
+            ];
+        }
+
+        $recentlyOffline = User::whereHas('role', fn($q) => $q->where('name', 'agent'))
+            ->whereNotNull('last_seen_at')
+            ->where('last_seen_at', '<=', now()->subMinutes(5))
+            ->where('last_seen_at', '>=', now()->subMinutes(20))
+            ->get();
+        foreach ($recentlyOffline as $agent) {
+            $items[] = [
+                'id' => 'offline-' . $agent->id,
+                'type' => 'offline',
+                'message' => $agent->full_name . ' went offline',
+                'timestamp' => $agent->last_seen_at->addMinutes(5),
+            ];
+        }
+
+        usort($items, fn($a, $b) => strtotime($b['timestamp']) <=> strtotime($a['timestamp']));
+
+        return response()->json(array_slice($items, 0, $limit));
+    }
 
     public function statusChecksum(Request $request)
     {

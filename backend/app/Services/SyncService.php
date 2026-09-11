@@ -189,6 +189,19 @@ class SyncService
 
         AuditService::logRegistrationCreated($registration);
 
+        $countAfter = Registration::where('polling_unit_id', $pollingUnit->id)->active()->count();
+        $target = $pollingUnit->target_count ?: \App\Models\Setting::get('target_per_pu', 10);
+        if ($countAfter === (int) $target) {
+            AuditService::log(
+                'POLLING_UNIT_TARGET_REACHED',
+                'polling_unit',
+                (string) $pollingUnit->id,
+                null,
+                ['name' => $pollingUnit->name, 'code' => $pollingUnit->code, 'target' => $target],
+                $agent->id
+            );
+        }
+
         return [
             'status' => 'synced',
             'registration_id' => $registration->id,

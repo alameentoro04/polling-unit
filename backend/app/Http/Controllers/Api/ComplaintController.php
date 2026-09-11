@@ -43,6 +43,7 @@ class ComplaintController extends Controller
                 $results[] = ['client_id' => $clientId, 'status' => 'failed', 'errors' => $validator->errors()];
                 continue;
             }
+
             $assignment = $agent->currentAssignment();
             $pollingUnit = $assignment?->pollingUnit;
             if (!empty($payload['polling_unit_id'])) {
@@ -77,6 +78,18 @@ class ComplaintController extends Controller
         }
 
         return response()->json(['results' => $results]);
+    }
+
+    public function myComplaints(Request $request)
+    {
+        $agent = $request->user();
+
+        $complaints = \App\Models\Complaint::with(['pollingUnit', 'ward', 'lga'])
+            ->where('submitted_by', $agent->id)
+            ->orderByDesc('submitted_at')
+            ->paginate(20);
+
+        return response()->json($complaints);
     }
 
     public function index(Request $request)

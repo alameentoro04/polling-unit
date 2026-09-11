@@ -1,8 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, memo } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import {
+  Users,
+  Target,
+  TrendingUp,
+  MapPin,
+  CheckCircle2,
+  UserCheck,
+  XCircle,
+  AlertTriangle,
+} from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import SkeletonCard from "../components/SkeletonCard";
-import AnimatedNumber from "../components/AnimatedNumber";
+import StatCard from "../components/StatCard";
+import ActivityFeed from "../components/ActivityFeed";
 import {
   BarChart,
   Bar,
@@ -19,16 +31,37 @@ import {
   Line,
 } from "recharts";
 
-const COLORS = ["#1a5f2a", "#f59e0b", "#dc2626", "#2563eb", "#7c3aed"];
+const COLORS = ["#9ca3af", "#c99a3d", "#22a35a"];
+
+function formatClock(date) {
+  return date.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+}
+
+const LiveClock = memo(function LiveClock({ lastUpdated }) {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const clock = setInterval(() => tick((n) => n + 1), 1000);
+    return () => clearInterval(clock);
+  }, []);
+  return (
+    <div className="ops-updated">Last updated {formatClock(lastUpdated)}</div>
+  );
+});
 
 export default function Dashboard() {
-  const { api } = useAuth();
+  const { api, user } = useAuth();
   const navigate = useNavigate();
   const [summary, setSummary] = useState(null);
   const [daily, setDaily] = useState([]);
   const [lgas, setLgas] = useState([]);
   const [completion, setCompletion] = useState({});
   const [lastChecksum, setLastChecksum] = useState("");
+  const [lastUpdated, setLastUpdated] = useState(new Date());
   const [filters, setFilters] = useState({
     lga_id: "",
     ward_id: "",
@@ -37,28 +70,22 @@ export default function Dashboard() {
     date_to: "",
   });
 
-  // Location dropdown data (separate from chart data)
   const [allLgas, setAllLgas] = useState([]);
   const [wards, setWards] = useState([]);
   const [pollingUnits, setPollingUnits] = useState([]);
 
   useEffect(() => {
     api.get("/lgas").then((res) => setAllLgas(res.data));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadWards = (lgaId) => {
-    if (!lgaId) {
-      setWards([]);
-      return;
-    }
+    if (!lgaId) return setWards([]);
     api.get(`/lgas/${lgaId}/wards`).then((res) => setWards(res.data));
   };
 
   const loadPollingUnits = (wardId) => {
-    if (!wardId) {
-      setPollingUnits([]);
-      return;
-    }
+    if (!wardId) return setPollingUnits([]);
     api
       .get(`/wards/${wardId}/polling-units`)
       .then((res) => setPollingUnits(res.data));
@@ -68,6 +95,7 @@ export default function Dashboard() {
     const poll = setInterval(checkUpdates, 15000);
     checkUpdates();
     return () => clearInterval(poll);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
 
   const checkUpdates = async () => {
@@ -97,6 +125,7 @@ export default function Dashboard() {
     setDaily(dailyRes.data.map((d) => ({ date: d.date, count: d.count })));
     setLgas(lgaRes.data);
     setCompletion(compRes.data);
+    setLastUpdated(new Date());
   };
 
   if (!summary)
@@ -104,7 +133,7 @@ export default function Dashboard() {
       <div>
         <h1 className="text-lg font-bold mb-4">Dashboard</h1>
         <div className="summary-grid">
-          {Array.from({ length: 9 }).map((_, i) => (
+          {Array.from({ length: 8 }).map((_, i) => (
             <SkeletonCard key={i} />
           ))}
         </div>
@@ -117,9 +146,53 @@ export default function Dashboard() {
     { name: "Completed", value: completion.completed || 0 },
   ];
 
+  const todayCount = daily[daily.length - 1]?.count ?? 0;
+  const yesterdayCount = daily[daily.length - 2]?.count ?? 0;
+  const regTrend =
+    yesterdayCount > 0
+      ? Math.round(((todayCount - yesterdayCount) / yesterdayCount) * 100)
+      : null;
+
   return (
     <div>
-      <h1 className="text-lg font-bold mb-4">Situation Room Dashboard</h1>
+      {/* Situation Room header */}
+      <div className="ops-header">
+        <div>
+          <h1 className="ops-title">Situation Room</h1>
+          <div className="ops-subtitle">Bauchi State • Election Monitoring</div>
+        </div>
+        <div className="ops-header-right">
+          <div className="ops-live">
+            <motion.span
+              className="ops-live-dot"
+              animate={{ opacity: [1, 0.35, 1] }}
+              transition={{
+                duration: 1.8,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
+            />
+            Live
+          </div>
+          <LiveClock lastUpdated={lastUpdated} />
+          <div className="ops-profile-chip">
+            <div className="ops-profile-avatar">
+              {(user?.full_name || "?")
+                .split(" ")
+                .map((p) => p[0])
+                .slice(0, 2)
+                .join("")
+                .toUpperCase()}
+            </div>
+            <div>
+              <div className="ops-profile-name">{user?.full_name}</div>
+              <div className="ops-profile-role">
+                {user?.role?.replace("_", " ")}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Filters */}
       <div className="filters-bar">
@@ -216,143 +289,153 @@ export default function Dashboard() {
         </button>
       </div>
 
+      {/* Stat cards */}
       <div className="summary-grid">
-        <div className="summary-card">
-          <div className="summary-label">Total LGAs</div>
-          <div className="summary-value">
-            <AnimatedNumber value={summary.total_lgas} />
-          </div>
-        </div>
-        <div className="summary-card">
-          <div className="summary-label">Total Wards</div>
-          <div className="summary-value">
-            <AnimatedNumber value={summary.total_wards} />
-          </div>
-        </div>
-        <div className="summary-card info">
-          <div className="summary-label">Total Registered</div>
-          <div className="summary-value">
-            <AnimatedNumber value={summary.total_registered} />
-          </div>
-        </div>
-        <div className="summary-card">
-          <div className="summary-label">Target</div>
-          <div className="summary-value">
-            <AnimatedNumber value={summary.total_target} />
-          </div>
-        </div>
-        <div className="summary-card success">
-          <div className="summary-label">Completion</div>
-          <div className="summary-value">
-            <AnimatedNumber
-              value={summary.completion_percentage}
-              format={(n) => `${n}%`}
-            />
-          </div>
-        </div>
-        <div className="summary-card warning">
-          <div className="summary-label">Polling Units</div>
-          <div className="summary-value">
-            <AnimatedNumber value={summary.total_polling_units} />
-          </div>
-        </div>
-        <div className="summary-card danger">
-          <div className="summary-label">Agents</div>
-          <div className="summary-value">
-            <AnimatedNumber value={summary.total_agents} />
-          </div>
-        </div>
-        <div className="summary-card info">
-          <div className="summary-label">Completed PUs</div>
-          <div className="summary-value">
-            <AnimatedNumber value={summary.completed_polling_units} />
-          </div>
-        </div>
-        <div
-          className="summary-card danger"
-          style={{ cursor: "pointer" }}
-          onClick={() => navigate("/complaints")}
-          title="Go to Complaints"
-        >
-          <div className="summary-label">Open Complaints</div>
-          <div className="summary-value">
-            <AnimatedNumber value={summary.open_complaints ?? 0} />
-          </div>
-        </div>
+        <StatCard
+          icon={Users}
+          label="Total Registered"
+          value={summary.total_registered}
+          color="primary"
+          trend={regTrend != null ? { value: regTrend } : null}
+        />
+        <StatCard
+          icon={Target}
+          label="Registration Target"
+          value={summary.total_target}
+          color="gold"
+        />
+        <StatCard
+          icon={TrendingUp}
+          label="Completion Rate"
+          value={summary.completion_percentage}
+          format={(n) => `${n}%`}
+          color="primary"
+          progress={summary.completion_percentage}
+        />
+        <StatCard
+          icon={MapPin}
+          label="Polling Units"
+          value={summary.total_polling_units}
+          color="info"
+        />
+        <StatCard
+          icon={CheckCircle2}
+          label="Completed PUs"
+          value={summary.completed_polling_units}
+          color="primary"
+          progress={
+            summary.total_polling_units
+              ? (summary.completed_polling_units /
+                  summary.total_polling_units) *
+                100
+              : 0
+          }
+        />
+        <StatCard
+          icon={UserCheck}
+          label="Active Agents"
+          value={summary.total_agents}
+          color="info"
+        />
+        <StatCard
+          icon={XCircle}
+          label="Failed Syncs"
+          value={summary.pending_sync ?? 0}
+          color="danger"
+        />
+        <StatCard
+          icon={AlertTriangle}
+          label="Conflicts"
+          value={summary.conflicts ?? 0}
+          color="danger"
+          onClick={() => navigate("/conflicts")}
+        />
       </div>
 
-      {/* Charts */}
-      <div className="charts-grid">
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">Daily Registrations</div>
+      {/* Activity feed + charts */}
+      <div className="ops-main-grid">
+        <div className="charts-grid" style={{ margin: 0 }}>
+          <div className="card">
+            <div className="card-header">
+              <div className="card-title">Daily Registrations</div>
+            </div>
+            <ResponsiveContainer width="100%" height={230}>
+              <LineChart data={daily}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--gray-200)" />
+                <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip />
+                <Line
+                  type="monotone"
+                  dataKey="count"
+                  stroke="var(--primary)"
+                  strokeWidth={2.5}
+                  dot={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
-          <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={daily}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-              <YAxis tick={{ fontSize: 12 }} />
-              <Tooltip />
-              <Line
-                type="monotone"
-                dataKey="count"
-                stroke="#1a5f2a"
-                strokeWidth={2}
-                dot={false}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+
+          <div className="card">
+            <div className="card-header">
+              <div className="card-title">LGA Performance</div>
+            </div>
+            <ResponsiveContainer width="100%" height={230}>
+              <BarChart data={lgas.slice(0, 10)}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--gray-200)" />
+                <XAxis
+                  dataKey="name"
+                  tick={{ fontSize: 11 }}
+                  angle={-30}
+                  textAnchor="end"
+                  height={60}
+                />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip />
+                <Bar
+                  dataKey="registered"
+                  fill="var(--primary)"
+                  radius={[4, 4, 0, 0]}
+                />
+                <Bar
+                  dataKey="target"
+                  fill="var(--gray-200)"
+                  radius={[4, 4, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="card">
+            <div className="card-header">
+              <div className="card-title">PU Completion Status</div>
+            </div>
+            <ResponsiveContainer width="100%" height={230}>
+              <PieChart>
+                <Pie
+                  data={completionData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={55}
+                  outerRadius={85}
+                  paddingAngle={4}
+                  dataKey="value"
+                >
+                  {completionData.map((entry, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={COLORS[index % COLORS.length]}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">LGA Performance</div>
-          </div>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={lgas.slice(0, 10)}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="name"
-                tick={{ fontSize: 11 }}
-                angle={-30}
-                textAnchor="end"
-                height={60}
-              />
-              <YAxis tick={{ fontSize: 12 }} />
-              <Tooltip />
-              <Bar dataKey="registered" fill="#1a5f2a" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="target" fill="#e5e7eb" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">PU Completion Status</div>
-          </div>
-          <ResponsiveContainer width="100%" height={250}>
-            <PieChart>
-              <Pie
-                data={completionData}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={90}
-                paddingAngle={4}
-                dataKey="value"
-              >
-                {completionData.map((entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={COLORS[index % COLORS.length]}
-                  />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
+        <ActivityFeed />
       </div>
     </div>
   );

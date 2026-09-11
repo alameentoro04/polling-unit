@@ -15,7 +15,6 @@ export default function Dashboard() {
   const { user, logout, api } = useAuth();
   const isOnline = useNetwork();
   const navigate = useNavigate();
-
   const [server, setServer] = useState(() => {
     try {
       const cached = localStorage.getItem(CACHE_KEY);
@@ -196,6 +195,13 @@ export default function Dashboard() {
         >
           📢 File a Complaint
           {localPendingComplaints > 0 && ` (${localPendingComplaints} pending)`}
+        </button>
+
+        <button
+          className="btn btn-secondary mb-3"
+          onClick={() => navigate("/my-complaints")}
+        >
+          My Complaints
         </button>
 
         <button

@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import Register from "./pages/Register";
 import Records from "./pages/Records";
 import Complaint from "./pages/Complaint";
+import MyComplaints from "./pages/MyComplaints";
 import OfflineBanner from "./components/OfflineBanner";
 
 function App() {
@@ -86,6 +87,10 @@ function App() {
         <Route
           path="/complaint"
           element={user ? <Complaint /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/my-complaints"
+          element={user ? <MyComplaints /> : <Navigate to="/login" />}
         />
       </Routes>
     </>

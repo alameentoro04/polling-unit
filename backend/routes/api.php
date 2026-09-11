@@ -29,7 +29,6 @@ Route::get('/form-fields', [FormFieldController::class, 'active']);
 
 Route::middleware(['auth:sanctum', ScopeDataAccess::class])->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
-    Route::post('/change-password', [AuthController::class, 'changePassword']);
 
     Route::get('/lgas', function () {
         return response()->json(\App\Models\Lga::orderBy('name')->get(['id', 'name', 'code']));
@@ -49,6 +48,7 @@ Route::middleware(['auth:sanctum', ScopeDataAccess::class])->group(function () {
         Route::post('/agent/register', [RegistrationController::class, 'storeOffline'])->middleware('throttle:30,1');
         Route::post('/agent/upload-photo', [RegistrationController::class, 'uploadPhoto'])->middleware('throttle:30,1');
         Route::post('/agent/complaints/sync', [ComplaintController::class, 'sync'])->middleware('throttle:30,1');
+        Route::get('/agent/complaints', [ComplaintController::class, 'myComplaints']);
         Route::post('/agent/heartbeat', [AuthController::class, 'heartbeat']);
         Route::post('/sync/push', [SyncController::class, 'push'])->middleware('throttle:30,1');
         Route::get('/sync/status', [SyncController::class, 'status']);
@@ -63,6 +63,7 @@ Route::middleware(['auth:sanctum', ScopeDataAccess::class])->group(function () {
         Route::get('/dashboard/wards', [DashboardController::class, 'wardPerformance']);
         Route::get('/dashboard/agents', [DashboardController::class, 'agentPerformance']);
         Route::get('/dashboard/completion', [DashboardController::class, 'completionDistribution']);
+        Route::get('/dashboard/activity', [DashboardController::class, 'activityFeed']);
 
         Route::get('/registrations', [RegistrationController::class, 'index']);
         Route::get('/registrations/{id}', [RegistrationController::class, 'show']);
@@ -74,12 +75,11 @@ Route::middleware(['auth:sanctum', ScopeDataAccess::class])->group(function () {
         Route::get('/map/polling-units', [MapController::class, 'pollingUnits']);
         Route::get('/map/polling-units/{id}', [MapController::class, 'pollingUnitDetail']);
 
-        // Polling unit management (list/detail) — create/edit/delete are
-        // admin-only, in the group below.
+        // Polling unit management 
         Route::get('/polling-units', [PollingUnitController::class, 'index']);
         Route::get('/polling-units/{id}', [PollingUnitController::class, 'show']);
 
-        // Ward listing for the Wards management page. Named /wards here
+        // Ward listing for the Wards management page
         Route::get('/wards', [WardController::class, 'index']);
 
         // Analytics
