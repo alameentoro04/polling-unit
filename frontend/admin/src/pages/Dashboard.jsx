@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import SkeletonCard from "../components/SkeletonCard";
 import AnimatedNumber from "../components/AnimatedNumber";
@@ -22,6 +23,7 @@ const COLORS = ["#1a5f2a", "#f59e0b", "#dc2626", "#2563eb", "#7c3aed"];
 
 export default function Dashboard() {
   const { api } = useAuth();
+  const navigate = useNavigate();
   const [summary, setSummary] = useState(null);
   const [daily, setDaily] = useState([]);
   const [lgas, setLgas] = useState([]);
@@ -102,7 +104,7 @@ export default function Dashboard() {
       <div>
         <h1 className="text-lg font-bold mb-4">Dashboard</h1>
         <div className="summary-grid">
-          {Array.from({ length: 8 }).map((_, i) => (
+          {Array.from({ length: 9 }).map((_, i) => (
             <SkeletonCard key={i} />
           ))}
         </div>
@@ -264,6 +266,17 @@ export default function Dashboard() {
           <div className="summary-label">Completed PUs</div>
           <div className="summary-value">
             <AnimatedNumber value={summary.completed_polling_units} />
+          </div>
+        </div>
+        <div
+          className="summary-card danger"
+          style={{ cursor: "pointer" }}
+          onClick={() => navigate("/complaints")}
+          title="Go to Complaints"
+        >
+          <div className="summary-label">Open Complaints</div>
+          <div className="summary-value">
+            <AnimatedNumber value={summary.open_complaints ?? 0} />
           </div>
         </div>
       </div>

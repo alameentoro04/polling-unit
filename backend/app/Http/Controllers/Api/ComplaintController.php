@@ -8,11 +8,10 @@ use App\Models\PollingUnit;
 use App\Models\User;
 use App\Services\AuditService;
 use Illuminate\Http\Request;
-use Illuminiate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Validator;
 
 class ComplaintController extends Controller
 {
-    
     public function sync(Request $request)
     {
         $agent = $request->user();
@@ -22,7 +21,7 @@ class ComplaintController extends Controller
         foreach ($complaints as $payload) {
             $clientId = $payload['client_id'] ?? null;
             if (!$clientId) {
-                $results[] = ['status' => 'failed', 'message' => 'Missing client_id'];
+                $results[] = ['client_id' => $clientId, 'status' => 'failed', 'message' => 'Missing client_id'];
                 continue;
             }
 
@@ -44,7 +43,6 @@ class ComplaintController extends Controller
                 $results[] = ['client_id' => $clientId, 'status' => 'failed', 'errors' => $validator->errors()];
                 continue;
             }
-
             $assignment = $agent->currentAssignment();
             $pollingUnit = $assignment?->pollingUnit;
             if (!empty($payload['polling_unit_id'])) {
@@ -128,10 +126,6 @@ class ComplaintController extends Controller
 
         $complaint = Complaint::findOrFail($id);
 
-        // A coordinator can only resolve complaints within their own
-        // scope — same restriction index() applies to the list, applied
-        // here too so they can't act on one outside it just by knowing
-        // its ID.
         $scope = $request->attributes->get('data_scope');
         $type = $scope['type'] ?? 'all';
         if ($type === 'lga' && (int) $complaint->lga_id !== (int) ($scope['lga_id'] ?? 0)) {

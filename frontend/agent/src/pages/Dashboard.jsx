@@ -58,6 +58,11 @@ export default function Dashboard() {
   }, [loadLocalCounts]);
 
   useEffect(() => {
+    const interval = setInterval(loadLocalCounts, 8000);
+    return () => clearInterval(interval);
+  }, [loadLocalCounts]);
+
+  useEffect(() => {
     if (isOnline) loadServerStats();
   }, [isOnline]);
 
@@ -135,7 +140,7 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Sync status */}
+        {/* Sync status strip */}
         <div
           className="flex justify-between items-center mb-2"
           style={{ padding: "0 0.125rem" }}

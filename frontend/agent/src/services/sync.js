@@ -85,11 +85,16 @@ export async function syncPendingComplaints() {
         await markComplaintSynced(result.client_id);
         synced++;
       } else {
+        console.error("Complaint sync rejected:", result);
         await updateComplaintSyncRetry(result.client_id);
         failed++;
       }
     }
   } catch (error) {
+    console.error(
+      "Complaint sync request failed:",
+      error.response?.data || error.message
+    );
     for (const item of pending) {
       await updateComplaintSyncRetry(item.client_id);
       failed++;

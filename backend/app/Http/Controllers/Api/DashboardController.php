@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Complaint;
 use App\Models\Lga;
 use App\Models\PollingUnit;
 use App\Models\Registration;
@@ -62,6 +63,17 @@ class DashboardController extends Controller
         return $count >= $target;
     })->count();
 
+    $complaintsQuery = Complaint::query()->where('status', 'open');
+    switch ($scope['type'] ?? 'all') {
+        case 'lga':
+            if (!empty($scope['lga_id'])) $complaintsQuery->where('lga_id', $scope['lga_id']);
+            break;
+        case 'ward':
+            if (!empty($scope['ward_id'])) $complaintsQuery->where('ward_id', $scope['ward_id']);
+            break;
+    }
+    $openComplaints = $complaintsQuery->count();
+
     return response()->json([
         'total_lgas' => $totalLgas,
         'total_wards' => $totalWards,
@@ -71,6 +83,7 @@ class DashboardController extends Controller
         'total_target' => $target,
         'completion_percentage' => $completion,
         'completed_polling_units' => $completedPUs,
+        'open_complaints' => $openComplaints,
     ]);
 }
 
@@ -82,7 +95,11 @@ class DashboardController extends Controller
 
         $lastUpdated = $query->max('updated_at') ?? now();
         $count = $query->count();
-        $checksum = md5($lastUpdated . $count);
+
+        $complaintsUpdated = Complaint::max('updated_at') ?? now();
+        $complaintsCount = Complaint::count();
+
+        $checksum = md5($lastUpdated . $count . $complaintsUpdated . $complaintsCount);
 
         return response()->json([
             'last_updated' => $lastUpdated,
