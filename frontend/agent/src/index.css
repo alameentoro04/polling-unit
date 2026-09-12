@@ -29,6 +29,7 @@
   --radius: 0.5rem;
   --radius-lg: 0.75rem;
   --font-numeral: "Roboto Slab", Georgia, serif;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 * {
@@ -69,6 +70,42 @@ button:disabled {
   max-width: 480px;
   margin: 0 auto;
   padding: 1rem;
+  padding-bottom: 5.5rem;
+}
+
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 4.25rem;
+  background: white;
+  border-top: 1px solid var(--gray-100);
+  display: flex;
+  z-index: 100;
+  box-shadow: 0 -2px 12px rgb(0 0 0 / 0.06);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.bottom-nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  color: var(--gray-400);
+  text-decoration: none;
+  font-size: 0.625rem;
+  font-weight: 600;
+}
+.bottom-nav-item.active {
+  color: var(--primary);
+}
+.bottom-nav-item svg {
+  transition: transform 160ms var(--ease);
+}
+.bottom-nav-item.active svg {
+  transform: translateY(-2px);
 }
 
 .card {
@@ -131,6 +168,20 @@ button:disabled {
   color: var(--gray-400);
 }
 
+.input-error {
+  border-color: var(--danger) !important;
+  background: #fdf5f4;
+}
+.field-error {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--danger);
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-top: 0.375rem;
+}
+
 .label {
   display: block;
   font-size: 0.8125rem;
@@ -143,6 +194,124 @@ button:disabled {
 
 .form-group {
   margin-bottom: 1rem;
+}
+
+/* Registration wizard */
+.wizard-steps {
+  display: flex;
+  justify-content: space-between;
+}
+.wizard-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  flex: 1;
+  opacity: 0.55;
+}
+.wizard-step.active,
+.wizard-step.done {
+  opacity: 1;
+}
+.wizard-step-dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  transition: background 200ms var(--ease);
+}
+.wizard-step.active .wizard-step-dot {
+  background: var(--gold);
+}
+.wizard-step.done .wizard-step-dot {
+  background: rgba(255, 255, 255, 0.35);
+}
+.wizard-step-label {
+  font-size: 0.625rem;
+  color: white;
+  font-weight: 600;
+}
+.wizard-nav {
+  display: flex;
+  gap: 0.625rem;
+  margin-top: 1rem;
+}
+.wizard-nav .btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+}
+
+/* Modal (duplicate PVC warning, and reusable elsewhere) */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 16, 0.5);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+.modal-panel {
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 380px;
+  padding: 1.5rem;
+}
+.duplicate-modal {
+  text-align: center;
+}
+.duplicate-modal-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--gold-light);
+  color: var(--gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 0.75rem;
+}
+.duplicate-modal-title {
+  font-family: var(--font-numeral);
+  font-weight: 700;
+  font-size: 1.0625rem;
+  color: var(--ink);
+}
+.duplicate-modal-text {
+  font-size: 0.8125rem;
+  color: var(--gray-600);
+  margin-top: 0.5rem;
+  line-height: 1.5;
+}
+.duplicate-modal-actions {
+  display: flex;
+  gap: 0.625rem;
+  margin-top: 1.25rem;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--gray-100);
+  font-size: 0.875rem;
+}
+.detail-row dt {
+  color: var(--gray-500);
+}
+.detail-row dd {
+  font-weight: 600;
+  text-align: right;
 }
 
 .badge {
@@ -276,31 +445,30 @@ button:disabled {
 }
 
 .offline-banner {
-  position: fixed;
+  position: sticky;
   top: 0;
   left: 0;
   right: 0;
-  background: var(--warning);
-  color: #78350f;
-  text-align: center;
-  padding: 0.5rem;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  z-index: 100;
-}
-
-.online-banner {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  background: var(--success);
+  background: linear-gradient(135deg, #1a2e22, #0f1c15);
   color: white;
-  text-align: center;
-  padding: 0.5rem;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  z-index: 100;
+  padding: 0.625rem 1rem;
+  font-size: 0.75rem;
+  z-index: 150;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  overflow: hidden;
+}
+.offline-banner-title {
+  font-weight: 700;
+}
+.offline-banner-subtitle {
+  opacity: 0.75;
+  font-size: 0.6875rem;
+  margin-top: 0.0625rem;
+}
+.offline-banner.reconnected {
+  background: linear-gradient(135deg, var(--primary-light), var(--primary));
 }
 
 .page-header {
@@ -310,6 +478,128 @@ button:disabled {
   padding-top: 1.5rem;
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
   margin-bottom: 1rem;
+}
+
+.agent-header {
+  background: linear-gradient(
+    160deg,
+    var(--primary-light) 0%,
+    var(--primary) 100%
+  );
+  color: white;
+  padding: 1.25rem 1rem 1.5rem;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+.agent-header-label {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.75;
+}
+.agent-header-pu {
+  font-family: var(--font-numeral);
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-top: 0.125rem;
+}
+.agent-header-location {
+  font-size: 0.75rem;
+  opacity: 0.8;
+  margin-top: 0.25rem;
+}
+
+.agent-profile {
+  position: relative;
+  flex-shrink: 0;
+}
+.agent-profile-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  background: rgba(255, 255, 255, 0.12);
+  border: none;
+  border-radius: 999px;
+  padding: 0.3rem 0.6rem 0.3rem 0.3rem;
+  color: white;
+}
+.agent-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--gold), #a87a24);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.625rem;
+  font-weight: 700;
+}
+.agent-profile-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.agent-profile-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: white;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  padding: 0.75rem;
+  min-width: 180px;
+  z-index: 50;
+}
+.agent-profile-menu-name {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.agent-profile-menu-role {
+  font-size: 0.6875rem;
+  color: var(--gray-500);
+  margin-bottom: 0.5rem;
+}
+.agent-profile-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.5rem;
+  background: var(--danger-light);
+  color: var(--danger);
+  border-radius: var(--radius);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.agent-cta-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  padding: 1.1rem;
+}
+.agent-cta-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  font-size: 0.8125rem;
+}
+
+.spin {
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .progress-bar {
@@ -341,10 +631,54 @@ button:disabled {
   padding: 3rem 1rem;
   color: var(--gray-400);
 }
+.empty-state-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--gray-100);
+  color: var(--gray-400);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+}
+.empty-state-title {
+  font-weight: 700;
+  font-size: 0.9375rem;
+  color: var(--gray-700);
+}
+.empty-state-description {
+  font-size: 0.8125rem;
+  color: var(--gray-400);
+  margin-top: 0.25rem;
+  max-width: 280px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.empty-state-action {
+  margin-top: 1rem;
+}
 
-/* Hero progress — the one thing an agent glances at from arm's length.
-   The ring's fill is drawn with a conic-gradient rather than an SVG so
-   it stays crisp and cheap to animate on lower-end Android devices. */
+.app-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: var(--primary);
+}
+.app-loading-title {
+  font-family: var(--font-numeral);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 0.5rem;
+}
+.app-loading-subtitle {
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
 .hero-progress {
   display: flex;
   flex-direction: column;

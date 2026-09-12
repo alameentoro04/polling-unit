@@ -143,11 +143,7 @@ button:disabled {
   margin-left: var(--sidebar-width);
   padding: 1.5rem;
 }
-/* Every page's <h1> picks this up automatically — same slab-serif
-   brand marker used for hero numbers on the agent app, applied here to
-   page titles instead of numbers (a desktop data tool doesn't need a
-   giant animated number as its hero the way a single field agent's
-   one-screen dashboard does — the title is the anchor here instead). */
+
 .main-content h1 {
   font-family: var(--font-numeral);
   letter-spacing: -0.01em;
@@ -373,7 +369,7 @@ button:disabled {
   font-family: var(--font-numeral);
 }
 
-/* StatCard  */
+/* StatCard */
 .stat-card {
   background: white;
   border-radius: var(--radius-lg);
@@ -526,6 +522,154 @@ button:disabled {
   color: #dfe3dc;
 }
 
+/* Drawer — slide-in side panel */
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 16, 0.45);
+  z-index: 200;
+}
+.drawer-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  max-width: 92vw;
+  background: white;
+  z-index: 201;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-lg);
+}
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--gray-100);
+}
+.drawer-title {
+  font-family: var(--font-numeral);
+  font-weight: 700;
+  font-size: 1.0625rem;
+  color: var(--ink);
+}
+.drawer-close {
+  color: var(--gray-400);
+}
+.drawer-close:hover {
+  color: var(--gray-700);
+}
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+.dark .drawer-panel {
+  background: #0f1712;
+}
+.dark .drawer-header {
+  border-color: #1e2a22;
+}
+.dark .drawer-title {
+  color: #eef0ec;
+}
+
+.data-table-wrap {
+  overflow-x: auto;
+  max-height: 640px;
+  overflow-y: auto;
+}
+.data-table-wrap .data-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--gray-50);
+  box-shadow: 0 1px 0 var(--gray-200);
+}
+.dark .data-table-wrap .data-table thead th {
+  background: #0b1210;
+  box-shadow: 0 1px 0 #1e2a22;
+}
+.data-table tbody tr {
+  cursor: pointer;
+}
+.data-table tbody tr:hover td:first-child {
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+/* Search input with a leading icon */
+.input-icon-wrap {
+  position: relative;
+}
+.input-icon {
+  position: absolute;
+  left: 0.625rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--gray-400);
+  pointer-events: none;
+}
+
+/* Drawer content helpers (used by the Registration details drawer) */
+.drawer-photo {
+  width: 100%;
+  max-height: 200px;
+  object-fit: cover;
+  border-radius: var(--radius);
+  margin-bottom: 1rem;
+}
+.drawer-photo-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 140px;
+  background: var(--gray-100);
+  color: var(--gray-400);
+}
+.drawer-name-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.drawer-person-name {
+  font-family: var(--font-numeral);
+  font-weight: 700;
+  font-size: 1.0625rem;
+  color: var(--ink);
+}
+.dark .drawer-person-name {
+  color: #eef0ec;
+}
+.dark .drawer-photo-placeholder {
+  background: #1a241c;
+}
+
+/* Desktop table / mobile card toggle, used on Polling Units and Wards */
+.mobile-only {
+  display: none;
+}
+.mobile-row-card {
+  background: white;
+  border: 1px solid var(--gray-100);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+.dark .mobile-row-card {
+  background: #101913;
+  border-color: #1e2a22;
+}
+@media (max-width: 768px) {
+  .desktop-only {
+    display: none;
+  }
+  .mobile-only {
+    display: block;
+  }
+}
+
 /* Situation Room header */
 .ops-header {
   display: flex;
@@ -619,7 +763,6 @@ button:disabled {
   color: #eef0ec;
 }
 
-/* Dashboard main content */
 .ops-main-grid {
   display: grid;
   grid-template-columns: 1fr 320px;
@@ -641,7 +784,7 @@ button:disabled {
     transform: translateY(0);
   }
 }
-/* Summary cards  */
+
 .summary-grid > .summary-card:nth-child(1) {
   animation-delay: 0ms;
 }
@@ -868,7 +1011,7 @@ button:disabled {
     background-position: 400px 0;
   }
 }
-/* Toast */
+
 .toast {
   position: fixed;
   top: 20px;
@@ -1106,7 +1249,6 @@ button:disabled {
   border-color: var(--gray-100);
 }
 
-/* Modal  */
 .modal-backdrop {
   position: fixed;
   inset: 0;

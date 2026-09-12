@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { MessageSquareWarning } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { useNetwork } from "../hooks/useNetwork";
 import { getMyComplaints } from "../services/db";
+import EmptyState from "../components/EmptyState";
 
 const statusColors = { open: "yellow", reviewed: "green", resolved: "gray" };
 
@@ -19,6 +21,7 @@ export default function MyComplaints() {
 
   const loadComplaints = async () => {
     const local = await getMyComplaints();
+
     if (isOnline) {
       try {
         const res = await api.get("/agent/complaints");
@@ -61,17 +64,19 @@ export default function MyComplaints() {
         {loading ? (
           <div className="text-center p-4 text-gray-500">Loading…</div>
         ) : complaints.length === 0 ? (
-          <div className="empty-state">
-            <div className="text-sm mb-3">
-              You haven't filed any complaints yet.
-            </div>
-            <button
-              className="btn btn-primary"
-              onClick={() => navigate("/complaint")}
-            >
-              + File a Complaint
-            </button>
-          </div>
+          <EmptyState
+            icon={MessageSquareWarning}
+            title="No complaints filed"
+            description="Anything you or a voter reports will show up here."
+            action={
+              <button
+                className="btn btn-primary"
+                onClick={() => navigate("/complaint")}
+              >
+                <MessageSquareWarning size={16} /> File a Complaint
+              </button>
+            }
+          />
         ) : (
           complaints.map((c) => (
             <div className="card mb-3" key={c.client_id}>

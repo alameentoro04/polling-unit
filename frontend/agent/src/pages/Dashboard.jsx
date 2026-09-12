@@ -1,5 +1,13 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import {
+  UserPlus,
+  MessageSquareWarning,
+  RefreshCw,
+  LogOut,
+  ChevronDown,
+} from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { useNetwork } from "../hooks/useNetwork";
 import {
@@ -11,10 +19,63 @@ import { syncPendingRecords, syncPendingComplaints } from "../services/sync";
 
 const CACHE_KEY = "cached_agent_dashboard";
 
+function initials(name) {
+  if (!name) return "?";
+  return name
+    .split(" ")
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
+function ProfileMenu({ user, logout }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const onClick = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  return (
+    <div className="agent-profile" ref={ref}>
+      <button
+        className="agent-profile-trigger"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className="agent-avatar">{initials(user?.full_name)}</span>
+        <span className="agent-profile-name">
+          {user?.full_name?.split(" ")[0]}
+        </span>
+        <ChevronDown size={13} style={{ opacity: 0.7 }} />
+      </button>
+      {open && (
+        <motion.div
+          className="agent-profile-menu"
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.15 }}
+        >
+          <div className="agent-profile-menu-name">{user?.full_name}</div>
+          <div className="agent-profile-menu-role">Polling Unit Agent</div>
+          <button className="agent-profile-menu-item" onClick={logout}>
+            <LogOut size={14} /> Logout
+          </button>
+        </motion.div>
+      )}
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { user, logout, api } = useAuth();
   const isOnline = useNetwork();
   const navigate = useNavigate();
+
   const [server, setServer] = useState(() => {
     try {
       const cached = localStorage.getItem(CACHE_KEY);
@@ -29,6 +90,7 @@ export default function Dashboard() {
   const [syncing, setSyncing] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [localPendingComplaints, setLocalPendingComplaints] = useState(0);
+  const [displayCompletion, setDisplayCompletion] = useState(0);
 
   const loadLocalCounts = useCallback(async () => {
     const [pending, conflicts, pendingComplaints] = await Promise.all([
@@ -74,7 +136,6 @@ export default function Dashboard() {
   };
 
   const assignment = user?.assignment;
-
   const target = server?.progress?.target ?? 10;
   const serverRegistered = server?.progress?.registered ?? 0;
   const registered = serverRegistered + localPending;
@@ -82,29 +143,36 @@ export default function Dashboard() {
   const synced = server?.sync?.synced ?? 0;
   const conflicts = server ? server.sync.conflicts : localConflicts;
 
+  useEffect(() => {
+    const start = displayCompletion;
+    const end = completion;
+    if (start === end) return;
+    const duration = 700;
+    const startTime = performance.now();
+    let frame;
+    const tick = (now) => {
+      const t = Math.min((now - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setDisplayCompletion(Math.round(start + (end - start) * eased));
+      if (t < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [completion]);
+
   return (
     <div>
-      <div className="page-header">
-        <div className="flex justify-between items-center mb-3">
-          <div>
-            <div className="text-xs opacity-80">My Polling Unit</div>
-            <div className="text-lg font-bold">
-              {assignment?.polling_unit_name || "Not Assigned"}
-            </div>
+      <div className="agent-header">
+        <div>
+          <div className="agent-header-label">My Polling Unit</div>
+          <div className="agent-header-pu">
+            {assignment?.polling_unit_name || "Not Assigned"}
           </div>
-          <button
-            onClick={logout}
-            className="text-xs opacity-80"
-            style={{ color: "white" }}
-          >
-            Logout
-          </button>
+          <div className="agent-header-location">
+            {assignment?.ward_name || "—"} • {assignment?.lga_name || "—"}
+          </div>
         </div>
-        <div className="flex gap-2 text-xs opacity-80">
-          <span>{assignment?.ward_name || "—"}</span>
-          <span>•</span>
-          <span>{assignment?.lga_name || "—"}</span>
-        </div>
+        <ProfileMenu user={user} logout={logout} />
       </div>
 
       <div className="container">
@@ -118,13 +186,18 @@ export default function Dashboard() {
           </div>
         )}
 
-        <div className="card hero-progress">
+        <motion.div
+          className="card hero-progress"
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+        >
           <div
             className="hero-ring"
             style={{ "--pct": Math.min(completion, 100) }}
           >
             <div className="hero-ring-inner">
-              <div className="hero-ring-pct">{completion}%</div>
+              <div className="hero-ring-pct">{displayCompletion}%</div>
               <div className="hero-ring-label">complete</div>
             </div>
           </div>
@@ -137,7 +210,7 @@ export default function Dashboard() {
               Includes {localPending} not yet synced from this device
             </div>
           )}
-        </div>
+        </motion.div>
 
         {/* Sync status strip */}
         <div
@@ -173,6 +246,7 @@ export default function Dashboard() {
             onClick={handleSync}
             disabled={!isOnline || syncing}
           >
+            <RefreshCw size={14} className={syncing ? "spin" : ""} />
             {syncing
               ? "Syncing..."
               : `Sync ${localPending + localPendingComplaints} Item${
@@ -181,34 +255,22 @@ export default function Dashboard() {
           </button>
         )}
 
-        <button
-          className="btn btn-primary mb-3"
-          style={{ fontSize: "1.1rem", padding: "1rem" }}
+        <motion.button
+          className="btn btn-primary mb-3 agent-cta-primary"
           onClick={() => navigate("/register")}
+          whileTap={{ scale: 0.97 }}
         >
-          + Register Person
-        </button>
+          <UserPlus size={22} />
+          Register Person
+        </motion.button>
 
         <button
-          className="btn btn-secondary mb-3"
+          className="btn btn-secondary agent-cta-secondary"
           onClick={() => navigate("/complaint")}
         >
-          📢 File a Complaint
-          {localPendingComplaints > 0 && ` (${localPendingComplaints} pending)`}
-        </button>
-
-        <button
-          className="btn btn-secondary mb-3"
-          onClick={() => navigate("/my-complaints")}
-        >
-          My Complaints
-        </button>
-
-        <button
-          className="btn btn-secondary"
-          onClick={() => navigate("/records")}
-        >
-          My Records
+          <MessageSquareWarning size={16} />
+          File a Complaint
+          {localPendingComplaints > 0 && ` (${localPendingComplaints})`}
         </button>
       </div>
     </div>

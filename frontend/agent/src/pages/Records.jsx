@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { ClipboardList, UserPlus } from "lucide-react";
 import {
   getMyRecords,
   updatePendingRegistration,
@@ -7,6 +8,7 @@ import {
 } from "../services/db";
 import { useAuth } from "../hooks/useAuth";
 import { useNetwork } from "../hooks/useNetwork";
+import EmptyState from "../components/EmptyState";
 
 export default function Records() {
   const navigate = useNavigate();
@@ -101,14 +103,21 @@ export default function Records() {
 
       <div className="container">
         {loading ? (
-          <div className="empty-state">Loading...</div>
+          <div className="text-center p-4 text-gray-500">Loading…</div>
         ) : records.length === 0 ? (
-          <div className="empty-state">
-            <div className="text-lg mb-2">No records yet</div>
-            <div className="text-sm">
-              Tap "Register Person" to add your first record.
-            </div>
-          </div>
+          <EmptyState
+            icon={ClipboardList}
+            title="No records yet"
+            description='Tap "Register Person" to add your first record.'
+            action={
+              <button
+                className="btn btn-primary"
+                onClick={() => navigate("/register")}
+              >
+                <UserPlus size={16} /> Register Person
+              </button>
+            }
+          />
         ) : (
           records.map((r) => (
             <div key={r.client_id} className="record-item">

@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
+import { MapPin as MapPinIcon } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { useLocations } from "../hooks/useLocations";
+import SkeletonTable from "../components/SkeletonTable";
+import EmptyState from "../components/EmptyState";
 
 const emptyForm = {
   ward_id: "",
@@ -310,6 +313,7 @@ export default function PollingUnits() {
   const [rows, setRows] = useState([]);
   const [pagination, setPagination] = useState({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [search, setSearch] = useState("");
   const [lgaFilter, setLgaFilter] = useState("");
   const [wardFilter, setWardFilter] = useState("");
@@ -324,19 +328,32 @@ export default function PollingUnits() {
 
   const fetchRows = async (page = 1) => {
     setLoading(true);
+    setLoadError("");
     const params = new URLSearchParams({ page: String(page) });
     if (search) params.append("q", search);
     if (lgaFilter) params.append("lga_id", lgaFilter);
     if (wardFilter) params.append("ward_id", wardFilter);
     if (statusFilter) params.append("status", statusFilter);
-    const res = await api.get(`/polling-units?${params}`);
-    setRows(res.data.data);
-    setPagination({
-      current_page: res.data.current_page,
-      last_page: res.data.last_page,
-      total: res.data.total,
-    });
-    setLoading(false);
+    try {
+      const res = await api.get(`/polling-units?${params}`);
+      setRows(res.data.data);
+      setPagination({
+        current_page: res.data.current_page,
+        last_page: res.data.last_page,
+        total: res.data.total,
+      });
+    } catch (e) {
+      console.error(
+        "Failed to load polling units:",
+        e.response?.data || e.message
+      );
+      setLoadError(
+        e.response?.data?.message ||
+          "Couldn't load polling units. Check the console for details."
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDelete = async (pu) => {
@@ -429,11 +446,33 @@ export default function PollingUnits() {
         </div>
       </div>
 
-      <div className="card">
-        {loading ? (
-          <div className="text-center p-4">Loading...</div>
-        ) : (
-          <>
+      {loadError && (
+        <div
+          className="badge badge-red mb-3"
+          style={{
+            width: "100%",
+            justifyContent: "center",
+            padding: "0.75rem",
+          }}
+        >
+          {loadError}
+        </div>
+      )}
+
+      {loading ? (
+        <SkeletonTable rows={8} columns={7} />
+      ) : loadError ? null : rows.length === 0 ? (
+        <div className="card">
+          <EmptyState
+            icon={MapPinIcon}
+            title="No polling units found"
+            description="Try adjusting your search or filters."
+          />
+        </div>
+      ) : (
+        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+          {/* Desktop table */}
+          <div className="data-table-wrap desktop-only">
             <table className="data-table">
               <thead>
                 <tr>
@@ -449,7 +488,7 @@ export default function PollingUnits() {
               </thead>
               <tbody>
                 {rows.map((pu) => (
-                  <tr key={pu.id}>
+                  <tr key={pu.id} onClick={() => setViewingId(pu.id)}>
                     <td className="font-semibold">{pu.code}</td>
                     <td>{pu.name}</td>
                     <td>{pu.ward?.name}</td>
@@ -471,13 +510,10 @@ export default function PollingUnits() {
                         {pu.is_active ? "Active" : "Deactivated"}
                       </span>
                     </td>
-                    <td className="flex gap-2">
-                      <button
-                        className="btn btn-sm btn-secondary"
-                        onClick={() => setViewingId(pu.id)}
-                      >
-                        View
-                      </button>
+                    <td
+                      className="flex gap-2"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <button
                         className="btn btn-sm btn-secondary"
                         onClick={() => {
@@ -498,20 +534,77 @@ export default function PollingUnits() {
                 ))}
               </tbody>
             </table>
-            <div className="pagination">
-              {Array.from({ length: pagination.last_page || 1 }, (_, i) => (
-                <button
-                  key={i}
-                  className={pagination.current_page === i + 1 ? "active" : ""}
-                  onClick={() => fetchRows(i + 1)}
+          </div>
+
+          {/* Mobile cards */}
+          <div className="mobile-only" style={{ padding: "0.75rem" }}>
+            {rows.map((pu) => (
+              <div
+                className="mobile-row-card"
+                key={pu.id}
+                onClick={() => setViewingId(pu.id)}
+              >
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="font-semibold">{pu.name}</div>
+                    <div className="text-xs text-gray-500">{pu.code}</div>
+                  </div>
+                  <span
+                    className={`badge badge-${pu.is_active ? "green" : "gray"}`}
+                  >
+                    {pu.is_active ? "Active" : "Off"}
+                  </span>
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {pu.ward?.name}, {pu.ward?.lga?.name}
+                </div>
+                <div className="flex justify-between items-center mt-2">
+                  <span className="text-xs">
+                    {pu.assigned_agent?.full_name || "Unassigned"}
+                  </span>
+                  <span className="text-xs font-semibold">
+                    {pu.registered_count} / {pu.target_count}
+                  </span>
+                </div>
+                <div
+                  className="flex gap-2 mt-2"
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  {i + 1}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
+                  <button
+                    className="btn btn-sm btn-secondary"
+                    style={{ flex: 1 }}
+                    onClick={() => {
+                      setEditingPu(pu);
+                      setShowForm(true);
+                    }}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="btn btn-sm btn-danger"
+                    style={{ flex: 1 }}
+                    onClick={() => handleDelete(pu)}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="pagination">
+            {Array.from({ length: pagination.last_page || 1 }, (_, i) => (
+              <button
+                key={i}
+                className={pagination.current_page === i + 1 ? "active" : ""}
+                onClick={() => fetchRows(i + 1)}
+              >
+                {i + 1}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {showForm && (
         <PollingUnitFormModal
