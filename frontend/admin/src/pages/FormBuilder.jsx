@@ -1,4 +1,11 @@
 import { useEffect, useState } from "react";
+import {
+  GripVertical,
+  ChevronUp,
+  ChevronDown,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 
 const FIELD_TYPES = [
@@ -116,6 +123,28 @@ export default function FormBuilder() {
     if (newIdx < 0 || newIdx >= fields.length) return;
     const newFields = [...fields];
     [newFields[idx], newFields[newIdx]] = [newFields[newIdx], newFields[idx]];
+    const orders = newFields.map((f, i) => ({ id: f.id, sort_order: i }));
+    await api.post("/form-fields/reorder", { orders });
+    fetchFields();
+  };
+
+  const [dragId, setDragId] = useState(null);
+  const [dragOverId, setDragOverId] = useState(null);
+
+  const handleDrop = async (targetId) => {
+    if (dragId === null || dragId === targetId) {
+      setDragId(null);
+      setDragOverId(null);
+      return;
+    }
+    const newFields = [...fields];
+    const fromIdx = newFields.findIndex((f) => f.id === dragId);
+    const toIdx = newFields.findIndex((f) => f.id === targetId);
+    const [moved] = newFields.splice(fromIdx, 1);
+    newFields.splice(toIdx, 0, moved);
+    setFields(newFields);
+    setDragId(null);
+    setDragOverId(null);
     const orders = newFields.map((f, i) => ({ id: f.id, sort_order: i }));
     await api.post("/form-fields/reorder", { orders });
     fetchFields();
@@ -285,23 +314,45 @@ export default function FormBuilder() {
           </thead>
           <tbody>
             {fields.map((f, idx) => (
-              <tr key={f.id}>
+              <tr
+                key={f.id}
+                draggable
+                onDragStart={() => setDragId(f.id)}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOverId(f.id);
+                }}
+                onDragEnd={() => {
+                  setDragId(null);
+                  setDragOverId(null);
+                }}
+                onDrop={() => handleDrop(f.id)}
+                className={
+                  dragOverId === f.id && dragId !== f.id ? "drag-over" : ""
+                }
+                style={{ opacity: dragId === f.id ? 0.4 : 1, cursor: "grab" }}
+              >
                 <td>
-                  <div className="flex gap-1">
-                    <button
-                      className="text-xs"
-                      onClick={() => moveField(f.id, -1)}
-                      disabled={idx === 0}
-                    >
-                      ▲
-                    </button>
-                    <button
-                      className="text-xs"
-                      onClick={() => moveField(f.id, 1)}
-                      disabled={idx === fields.length - 1}
-                    >
-                      ▼
-                    </button>
+                  <div className="flex items-center gap-1">
+                    <GripVertical size={14} className="text-gray-400" />
+                    <div className="flex flex-col">
+                      <button
+                        className="text-xs"
+                        onClick={() => moveField(f.id, -1)}
+                        disabled={idx === 0}
+                        aria-label="Move up"
+                      >
+                        <ChevronUp size={12} />
+                      </button>
+                      <button
+                        className="text-xs"
+                        onClick={() => moveField(f.id, 1)}
+                        disabled={idx === fields.length - 1}
+                        aria-label="Move down"
+                      >
+                        <ChevronDown size={12} />
+                      </button>
+                    </div>
                   </div>
                 </td>
                 <td className="font-semibold">{f.label}</td>
@@ -317,18 +368,18 @@ export default function FormBuilder() {
                     {f.active ? "Active" : "Hidden"}
                   </span>
                 </td>
-                <td>
+                <td className="flex gap-2">
                   <button
                     className="btn btn-sm btn-secondary"
                     onClick={() => handleEdit(f)}
                   >
-                    Edit
+                    <Pencil size={12} />
                   </button>
                   <button
                     className="btn btn-sm btn-danger"
                     onClick={() => handleDelete(f.id)}
                   >
-                    Delete
+                    <Trash2 size={12} />
                   </button>
                 </td>
               </tr>

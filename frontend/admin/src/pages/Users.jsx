@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { MoreVertical, Eye, Pencil, MapPinned, Trash2 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { useLocations } from "../hooks/useLocations";
 
@@ -8,6 +9,106 @@ const ROLES = [
   { value: "ward_coordinator", label: "Ward Coordinator" },
   { value: "agent", label: "Polling Unit Agent" },
 ];
+
+function initials(name) {
+  if (!name) return "?";
+  return name
+    .split(" ")
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
+function isOnline(lastSeenAt) {
+  if (!lastSeenAt) return false;
+  return (Date.now() - new Date(lastSeenAt)) / 60000 < 5;
+}
+function lastSeenLabel(lastSeenAt) {
+  if (!lastSeenAt) return "Never active";
+  const mins = Math.floor((Date.now() - new Date(lastSeenAt)) / 60000);
+  if (mins < 60) return `Seen ${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `Seen ${hours}h ago`;
+  return `Seen ${Math.floor(hours / 24)}d ago`;
+}
+function roleBadgeColor(role) {
+  return (
+    {
+      admin: "red",
+      lga_coordinator: "blue",
+      ward_coordinator: "yellow",
+      agent: "green",
+    }[role] || "gray"
+  );
+}
+
+function UserActionMenu({ user, onView, onEdit, onAssign, onDelete }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const onClick = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  return (
+    <div className="user-action-menu" ref={ref}>
+      <button
+        className="user-action-trigger"
+        onClick={() => setOpen((o) => !o)}
+        aria-label="Actions"
+      >
+        <MoreVertical size={16} />
+      </button>
+      {open && (
+        <div className="user-action-dropdown">
+          <button
+            onClick={() => {
+              onView();
+              setOpen(false);
+            }}
+          >
+            <Eye size={14} /> View
+          </button>
+          <button
+            onClick={() => {
+              onEdit();
+              setOpen(false);
+            }}
+          >
+            <Pencil size={14} /> Edit
+          </button>
+          {onAssign && (
+            <button
+              onClick={() => {
+                onAssign();
+                setOpen(false);
+              }}
+            >
+              <MapPinned size={14} />{" "}
+              {user.assigned_polling_unit_id ? "Reassign" : "Assign"}
+            </button>
+          )}
+          {onDelete && (
+            <button
+              className="danger"
+              onClick={() => {
+                onDelete();
+                setOpen(false);
+              }}
+            >
+              <Trash2 size={14} /> Delete
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const emptyForm = {
   full_name: "",
@@ -39,6 +140,7 @@ function CreateUserModal({ onClose, onCreated }) {
     setErrors({});
     try {
       const res = await api.post("/users", form);
+
       if (form.role === "agent" && assignPu) {
         try {
           await api.post(`/users/${res.data.id}/assign`, {
@@ -690,16 +792,39 @@ export default function Users() {
                 <th>Role</th>
                 <th>Scope / Assignment</th>
                 <th>Status</th>
-                <th>Actions</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
               {users.map((u) => (
                 <tr key={u.id}>
-                  <td>{u.full_name}</td>
+                  <td>
+                    <div className="flex items-center gap-2">
+                      <div className="user-avatar">{initials(u.full_name)}</div>
+                      <div>
+                        <div className="font-semibold">{u.full_name}</div>
+                        {u.role?.name === "agent" && (
+                          <div
+                            className={`user-online-dot-wrap ${
+                              isOnline(u.last_seen_at) ? "online" : "offline"
+                            }`}
+                          >
+                            <span className="user-online-dot" />
+                            {isOnline(u.last_seen_at)
+                              ? "Online"
+                              : lastSeenLabel(u.last_seen_at)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </td>
                   <td>{u.username}</td>
-                  <td className="capitalize">
-                    {u.role?.name?.replace("_", " ")}
+                  <td>
+                    <span
+                      className={`badge badge-${roleBadgeColor(u.role?.name)}`}
+                    >
+                      {u.role?.name?.replace("_", " ")}
+                    </span>
                   </td>
                   <td className="text-sm text-gray-600">{scopeLabel(u)}</td>
                   <td>
@@ -709,35 +834,18 @@ export default function Users() {
                       {u.is_active ? "Active" : "Inactive"}
                     </span>
                   </td>
-                  <td className="flex gap-2">
-                    <button
-                      className="btn btn-sm btn-secondary"
-                      onClick={() => setViewingId(u.id)}
-                    >
-                      View
-                    </button>
-                    <button
-                      className="btn btn-sm btn-secondary"
-                      onClick={() => setEditing(u)}
-                    >
-                      Edit
-                    </button>
-                    {u.role?.name === "agent" && u.is_active && (
-                      <button
-                        className="btn btn-sm btn-secondary"
-                        onClick={() => setAssigning(u)}
-                      >
-                        {u.assigned_polling_unit_id ? "Reassign" : "Assign"}
-                      </button>
-                    )}
-                    {u.is_active && (
-                      <button
-                        className="btn btn-sm btn-danger"
-                        onClick={() => handleDelete(u)}
-                      >
-                        Delete
-                      </button>
-                    )}
+                  <td>
+                    <UserActionMenu
+                      user={u}
+                      onView={() => setViewingId(u.id)}
+                      onEdit={() => setEditing(u)}
+                      onAssign={
+                        u.role?.name === "agent" && u.is_active
+                          ? () => setAssigning(u)
+                          : null
+                      }
+                      onDelete={u.is_active ? () => handleDelete(u) : null}
+                    />
                   </td>
                 </tr>
               ))}
