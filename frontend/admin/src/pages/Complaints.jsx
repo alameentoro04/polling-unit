@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../hooks/useAuth";
+import Pagination from "../components/Pagination";
 
 const statusColors = { open: "yellow", reviewed: "green", resolved: "gray" };
 
@@ -23,11 +24,7 @@ export default function Complaints() {
     if (search) params.append("q", search);
     const res = await api.get(`/complaints?${params}`);
     setRows(res.data.data);
-    setPagination({
-      current_page: res.data.current_page,
-      last_page: res.data.last_page,
-      total: res.data.total,
-    });
+    setPagination({ current_page: res.data.current_page, last_page: res.data.last_page, total: res.data.total });
     setLoading(false);
   };
 
@@ -41,46 +38,25 @@ export default function Complaints() {
       <h1 className="text-lg font-bold mb-4">Complaints</h1>
 
       <div className="filters-bar mb-3">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            fetchRows(1);
-          }}
-          className="flex gap-2"
-        >
-          <input
-            className="input"
-            placeholder="Search complaint or name..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <button type="submit" className="btn btn-secondary">
-            Search
-          </button>
+        <form onSubmit={(e) => { e.preventDefault(); fetchRows(1); }} className="flex gap-2">
+          <input className="input" placeholder="Search complaint or name..." value={search} onChange={(e) => setSearch(e.target.value)} />
+          <button type="submit" className="btn btn-secondary">Search</button>
         </form>
-        <select
-          className="select"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        >
+        <select className="select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="">All Statuses</option>
           <option value="open">Open</option>
           <option value="reviewed">Reviewed</option>
           <option value="resolved">Resolved</option>
         </select>
         <div className="text-xs text-gray-500 flex items-center">
-          {loading
-            ? "Loading…"
-            : `${pagination.total?.toLocaleString() || 0} complaints`}
+          {loading ? "Loading…" : `${pagination.total?.toLocaleString() || 0} complaints`}
         </div>
       </div>
 
       {loading ? (
         <div className="card text-center p-4">Loading...</div>
       ) : rows.length === 0 ? (
-        <div className="card text-center p-4 text-gray-400">
-          No complaints found.
-        </div>
+        <div className="card text-center p-4 text-gray-400">No complaints found.</div>
       ) : (
         rows.map((c) => (
           <div className="card mb-3" key={c.id}>
@@ -88,8 +64,7 @@ export default function Complaints() {
               <div>
                 <div className="font-semibold">
                   {c.complainant_type === "voter"
-                    ? c.complainant_name ||
-                      "A registered voter (name not given)"
+                    ? c.complainant_name || "A registered voter (name not given)"
                     : `${c.submitted_by?.full_name} (agent observation)`}
                 </div>
                 <div className="text-xs text-gray-500">
@@ -100,14 +75,10 @@ export default function Complaints() {
                   {new Date(c.submitted_at).toLocaleString()}
                 </div>
                 {c.complainant_phone && (
-                  <div className="text-xs text-gray-500">
-                    📞 {c.complainant_phone}
-                  </div>
+                  <div className="text-xs text-gray-500">📞 {c.complainant_phone}</div>
                 )}
               </div>
-              <span className={`badge badge-${statusColors[c.status]}`}>
-                {c.status}
-              </span>
+              <span className={`badge badge-${statusColors[c.status]}`}>{c.status}</span>
             </div>
 
             <div
@@ -124,26 +95,17 @@ export default function Complaints() {
 
             <div className="flex gap-2 mt-3">
               {c.status !== "reviewed" && (
-                <button
-                  className="btn btn-sm btn-secondary"
-                  onClick={() => handleStatusChange(c.id, "reviewed")}
-                >
+                <button className="btn btn-sm btn-secondary" onClick={() => handleStatusChange(c.id, "reviewed")}>
                   Mark Reviewed
                 </button>
               )}
               {c.status !== "resolved" && (
-                <button
-                  className="btn btn-sm btn-primary"
-                  onClick={() => handleStatusChange(c.id, "resolved")}
-                >
+                <button className="btn btn-sm btn-primary" onClick={() => handleStatusChange(c.id, "resolved")}>
                   Mark Resolved
                 </button>
               )}
               {c.status !== "open" && (
-                <button
-                  className="btn btn-sm btn-secondary"
-                  onClick={() => handleStatusChange(c.id, "open")}
-                >
+                <button className="btn btn-sm btn-secondary" onClick={() => handleStatusChange(c.id, "open")}>
                   Reopen
                 </button>
               )}
@@ -152,19 +114,11 @@ export default function Complaints() {
         ))
       )}
 
-      {pagination.last_page > 1 && (
-        <div className="pagination">
-          {Array.from({ length: pagination.last_page }, (_, i) => (
-            <button
-              key={i}
-              className={pagination.current_page === i + 1 ? "active" : ""}
-              onClick={() => fetchRows(i + 1)}
-            >
-              {i + 1}
-            </button>
-          ))}
-        </div>
-      )}
+      <Pagination
+        currentPage={pagination.current_page || 1}
+        lastPage={pagination.last_page || 1}
+        onChange={fetchRows}
+      />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useLocations } from "../hooks/useLocations";
 import SkeletonTable from "../components/SkeletonTable";
 import EmptyState from "../components/EmptyState";
+import Pagination from "../components/Pagination";
 
 const emptyForm = {
   ward_id: "",
@@ -592,17 +593,11 @@ export default function PollingUnits() {
             ))}
           </div>
 
-          <div className="pagination">
-            {Array.from({ length: pagination.last_page || 1 }, (_, i) => (
-              <button
-                key={i}
-                className={pagination.current_page === i + 1 ? "active" : ""}
-                onClick={() => fetchRows(i + 1)}
-              >
-                {i + 1}
-              </button>
-            ))}
-          </div>
+          <Pagination
+            currentPage={pagination.current_page || 1}
+            lastPage={pagination.last_page || 1}
+            onChange={fetchRows}
+          />
         </div>
       )}
 

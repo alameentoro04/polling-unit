@@ -10,6 +10,15 @@ import Sidebar from "./components/Sidebar";
 import Toast from "./components/Toast";
 import ErrorBoundary from "./components/ErrorBoundary";
 
+// Route-level code splitting: Login and Dashboard are the two things
+// every session needs immediately (the login screen, then the first
+// page after signing in), so they stay in the main bundle. Everything
+// else — Map (pulls in Leaflet + marker clustering), Analytics
+// (recharts), Users, Settings, Form Builder, etc. — was previously
+// bundled into that same ~920KB chunk regardless of whether a session
+// ever visits those pages. Loading them on demand means Dashboard and
+// Analytics render as soon as their own (much smaller) code arrives,
+// instead of waiting on everything else in the app too.
 const Map = lazy(() => import("./pages/Map"));
 const Registrations = lazy(() => import("./pages/Registrations"));
 const Import = lazy(() => import("./pages/Import"));
@@ -29,6 +38,10 @@ function RouteFallback() {
 }
 
 function AppLayout({ children }) {
+  // Sidebar visibility only matters below the mobile breakpoint (see
+  // index.css) — on desktop the sidebar is always visible and this state
+  // is simply unused. Before this, the sidebar had no way to reopen once
+  // hidden on a narrow screen; there was no toggle at all.
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
@@ -56,8 +69,8 @@ function App() {
 
   if (loading) {
     return (
-      <div className="login-page">
-        <div className="text-white text-lg font-semibold">Loading...</div>
+      <div className="app-boot-loading">
+        <div className="text-lg font-semibold">Loading…</div>
       </div>
     );
   }
@@ -83,140 +96,140 @@ function App() {
       </AnimatePresence>
       <AppLayout>
         <Suspense fallback={<RouteFallback />}>
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={location.pathname}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
-            >
-              <Routes>
-                <Route
-                  path="/"
-                  element={
-                    <ErrorBoundary>
-                      <Dashboard />
-                    </ErrorBoundary>
-                  }
-                />
-                <Route
-                  path="/map"
-                  element={
-                    <ErrorBoundary>
-                      <Map />
-                    </ErrorBoundary>
-                  }
-                />
-                <Route
-                  path="/registrations"
-                  element={
-                    <ErrorBoundary>
-                      <Registrations />
-                    </ErrorBoundary>
-                  }
-                />
-                <Route
-                  path="/complaints"
-                  element={
-                    <ErrorBoundary>
-                      <Complaints />
-                    </ErrorBoundary>
-                  }
-                />
-                <Route
-                  path="/import"
-                  element={
-                    isAdmin ? (
-                      <ErrorBoundary>
-                        <Import />
-                      </ErrorBoundary>
-                    ) : (
-                      <Navigate to="/" />
-                    )
-                  }
-                />
-                <Route
-                  path="/conflicts"
-                  element={
-                    isAdmin ? (
-                      <ErrorBoundary>
-                        <SyncConflicts />
-                      </ErrorBoundary>
-                    ) : (
-                      <Navigate to="/" />
-                    )
-                  }
-                />
-                <Route
-                  path="/users"
-                  element={
-                    isAdmin ? (
-                      <ErrorBoundary>
-                        <Users />
-                      </ErrorBoundary>
-                    ) : (
-                      <Navigate to="/" />
-                    )
-                  }
-                />
-                <Route
-                  path="/polling-units"
-                  element={
-                    isAdmin ? (
-                      <ErrorBoundary>
-                        <PollingUnits />
-                      </ErrorBoundary>
-                    ) : (
-                      <Navigate to="/" />
-                    )
-                  }
-                />
-                <Route
-                  path="/wards"
-                  element={
-                    isAdmin ? (
-                      <ErrorBoundary>
-                        <Wards />
-                      </ErrorBoundary>
-                    ) : (
-                      <Navigate to="/" />
-                    )
-                  }
-                />
-                <Route path="/analytics" element={<Analytics />} />
-                <Route
-                  path="/settings"
-                  element={isAdmin ? <Settings /> : <Navigate to="/" />}
-                />
-                <Route
-                  path="/form-builder"
-                  element={isAdmin ? <FormBuilder /> : <Navigate to="/" />}
-                />
-                <Route
-                  path="/agents"
-                  element={
-                    <ErrorBoundary>
-                      <AgentPerformance />
-                    </ErrorBoundary>
-                  }
-                />
-                <Route
-                  path="/audit-logs"
-                  element={
-                    isAdmin ? (
-                      <ErrorBoundary>
-                        <AuditLogs />
-                      </ErrorBoundary>
-                    ) : (
-                      <Navigate to="/" />
-                    )
-                  }
-                />
-                <Route path="*" element={<Navigate to="/" />} />
-              </Routes>
-            </motion.div>
-          </AnimatePresence>
+        <AnimatePresence mode="wait">
+        <motion.div
+          key={location.pathname}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
+        >
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <ErrorBoundary>
+                <Dashboard />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="/map"
+            element={
+              <ErrorBoundary>
+                <Map />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="/registrations"
+            element={
+              <ErrorBoundary>
+                <Registrations />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="/complaints"
+            element={
+              <ErrorBoundary>
+                <Complaints />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="/import"
+            element={
+              isAdmin ? (
+                <ErrorBoundary>
+                  <Import />
+                </ErrorBoundary>
+              ) : (
+                <Navigate to="/" />
+              )
+            }
+          />
+          <Route
+            path="/conflicts"
+            element={
+              isAdmin ? (
+                <ErrorBoundary>
+                  <SyncConflicts />
+                </ErrorBoundary>
+              ) : (
+                <Navigate to="/" />
+              )
+            }
+          />
+          <Route
+            path="/users"
+            element={
+              isAdmin ? (
+                <ErrorBoundary>
+                  <Users />
+                </ErrorBoundary>
+              ) : (
+                <Navigate to="/" />
+              )
+            }
+          />
+          <Route
+            path="/polling-units"
+            element={
+              isAdmin ? (
+                <ErrorBoundary>
+                  <PollingUnits />
+                </ErrorBoundary>
+              ) : (
+                <Navigate to="/" />
+              )
+            }
+          />
+          <Route
+            path="/wards"
+            element={
+              isAdmin ? (
+                <ErrorBoundary>
+                  <Wards />
+                </ErrorBoundary>
+              ) : (
+                <Navigate to="/" />
+              )
+            }
+          />
+          <Route path="/analytics" element={<Analytics />} />
+          <Route
+            path="/settings"
+            element={isAdmin ? <Settings /> : <Navigate to="/" />}
+          />
+          <Route
+            path="/form-builder"
+            element={isAdmin ? <FormBuilder /> : <Navigate to="/" />}
+          />
+          <Route
+            path="/agents"
+            element={
+              <ErrorBoundary>
+                <AgentPerformance />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="/audit-logs"
+            element={
+              isAdmin ? (
+                <ErrorBoundary>
+                  <AuditLogs />
+                </ErrorBoundary>
+              ) : (
+                <Navigate to="/" />
+              )
+            }
+          />
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+        </motion.div>
+        </AnimatePresence>
         </Suspense>
       </AppLayout>
     </>

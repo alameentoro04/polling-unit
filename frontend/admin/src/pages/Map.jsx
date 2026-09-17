@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
+import { RefreshCw, MapPin as MapPinIcon } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { useLocations } from "../hooks/useLocations";
+import Drawer from "../components/Drawer";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster/dist/MarkerCluster.css";
@@ -20,8 +22,8 @@ let DefaultIcon = L.icon({
 L.Marker.prototype.options.icon = DefaultIcon;
 
 const BAUCHI_BOUNDS = [
-  [8.7, 8.1],
-  [13.2, 11.5],
+  [8.7, 8.1], // southwest
+  [13.2, 11.5], // northeast
 ];
 
 const statusColors = {
@@ -63,41 +65,28 @@ function coloredDivIcon(color) {
 
 function ClusteredMarkers({ points, onSelect }) {
   const map = useMap();
-  const clusterGroupRef = useRef(null);
+  const clusterRef = useRef(null);
 
-  // Initialize MarkerClusterGroup once per map lifespan
   useEffect(() => {
     const clusterGroup = L.markerClusterGroup({
       chunkedLoading: true,
       maxClusterRadius: 60,
       spiderfyOnMaxZoom: true,
     });
-
-    clusterGroupRef.current = clusterGroup;
+    clusterRef.current = clusterGroup;
     map.addLayer(clusterGroup);
-
     return () => {
       map.removeLayer(clusterGroup);
     };
   }, [map]);
 
-  // Update layer content safely when data changes
   useEffect(() => {
-    const clusterGroup = clusterGroupRef.current;
+    const clusterGroup = clusterRef.current;
     if (!clusterGroup) return;
 
     clusterGroup.clearLayers();
 
-    // Filter out invalid coordinates
-    const validPoints = points.filter(
-      (pu) =>
-        pu.latitude != null &&
-        pu.longitude != null &&
-        !isNaN(pu.latitude) &&
-        !isNaN(pu.longitude)
-    );
-
-    const markers = validPoints.map((pu) => {
+    const markers = points.map((pu) => {
       const marker = L.marker([pu.latitude, pu.longitude], {
         icon: coloredDivIcon(
           statusColors[pu.status] || statusColors.not_started
@@ -120,11 +109,11 @@ function ClusteredMarkers({ points, onSelect }) {
             pu.ward
           )}, ${escapeHtml(pu.lga)}</div>
           <div style="margin-top:6px;display:flex;justify-content:space-between;font-size:11px;">
-            <span>Target: ${pu.target ?? 0}</span>
-            <span>Registered: ${pu.registered ?? 0}</span>
+            <span>Target: ${pu.target}</span>
+            <span>Registered: ${pu.registered}</span>
           </div>
           <div style="margin-top:4px;font-size:11px;font-weight:600;">${
-            pu.completion ?? 0
+            pu.completion
           }% — ${statusLabels[pu.status] || ""}</div>
           ${approxNote}
         </div>
@@ -136,13 +125,13 @@ function ClusteredMarkers({ points, onSelect }) {
 
     clusterGroup.addLayers(markers);
 
-    if (validPoints.length > 0) {
+    if (markers.length > 0) {
       const bounds = L.latLngBounds(
-        validPoints.map((p) => [p.latitude, p.longitude])
+        points.map((p) => [p.latitude, p.longitude])
       );
-      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
+      map.fitBounds(bounds, { padding: [50, 50] });
     }
-  }, [points, map, onSelect]);
+  }, [points]);
 
   return null;
 }
@@ -193,7 +182,7 @@ export default function Map() {
       const res = await api.get(`/map/polling-units?${params}`);
       setPollingUnits(res.data);
     } catch (e) {
-      console.error("Failed to load polling units:", e);
+      console.error(e);
     } finally {
       setLoading(false);
     }
@@ -204,281 +193,212 @@ export default function Map() {
       const res = await api.get(`/map/polling-units/${id}`);
       setSelectedPU(res.data);
     } catch (e) {
-      console.error("Failed to fetch polling unit details:", e);
+      console.error(e);
     }
   };
 
-  const center = [10.3158, 9.8442];
+  const center = [10.3158, 9.8442]; // Bauchi State center
 
   return (
     <div>
-      <h1 className="text-lg font-bold mb-4">Polling Unit Map</h1>
+      <h1 className="text-lg font-bold mb-3">Polling Unit Map</h1>
 
-      <div className="filters-bar mb-4">
-        <select
-          className="select"
-          value={lgaFilter}
-          onChange={(e) => handleLgaChange(e.target.value)}
-        >
-          <option value="">All LGAs</option>
-          {lgas.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.name}
-            </option>
-          ))}
-        </select>
-        <select
-          className="select"
-          value={wardFilter}
-          onChange={(e) => handleWardChange(e.target.value)}
-          disabled={!lgaFilter}
-        >
-          <option value="">All Wards</option>
-          {wards.map((w) => (
-            <option key={w.id} value={w.id}>
-              {w.name}
-            </option>
-          ))}
-        </select>
-        <select
-          className="select"
-          value={puFilter}
-          onChange={(e) => setPuFilter(e.target.value)}
-          disabled={!wardFilter}
-        >
-          <option value="">All Polling Units</option>
-          {puOptions.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-        <select
-          className="select"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        >
-          <option value="all">All Statuses</option>
-          <option value="not_started">Not Started</option>
-          <option value="in_progress">In Progress</option>
-          <option value="completed">Completed</option>
-        </select>
-        <button className="btn btn-secondary" onClick={fetchPollingUnits}>
-          Refresh
-        </button>
-        <div
-          style={{
-            fontSize: "0.75rem",
-            color: "var(--gray-500)",
-            display: "flex",
-            alignItems: "center",
-          }}
-        >
-          {loading
-            ? "Loading…"
-            : `${pollingUnits.length.toLocaleString()} polling units`}
-        </div>
-        <div
-          style={{
-            display: "flex",
-            gap: "0.75rem",
-            alignItems: "center",
-            marginLeft: "auto",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.25rem",
-              fontSize: "0.75rem",
-            }}
+      <div className="map-shell">
+        <div className="map-container map-container-full">
+          <MapContainer
+            center={center}
+            zoom={9}
+            minZoom={8}
+            maxBounds={BAUCHI_BOUNDS}
+            maxBoundsViscosity={1.0}
+            style={{ height: "100%", width: "100%" }}
           >
-            <span
-              style={{
-                width: 12,
-                height: 12,
-                background: "#9ca3af",
-                borderRadius: "50%",
-                display: "inline-block",
-              }}
-            ></span>
-            Not Started
-          </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.25rem",
-              fontSize: "0.75rem",
-            }}
-          >
-            <span
-              style={{
-                width: 12,
-                height: 12,
-                background: "#f59e0b",
-                borderRadius: "50%",
-                display: "inline-block",
-              }}
-            ></span>
-            In Progress
-          </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.25rem",
-              fontSize: "0.75rem",
-            }}
-          >
-            <span
-              style={{
-                width: 12,
-                height: 12,
-                background: "#16a34a",
-                borderRadius: "50%",
-                display: "inline-block",
-              }}
-            ></span>
-            Completed
-          </div>
-        </div>
-      </div>
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            <ClusteredMarkers points={pollingUnits} onSelect={fetchPUDetail} />
+          </MapContainer>
 
-      <div style={{ display: "flex", gap: "1rem", alignItems: "flex-start" }}>
-        <div style={{ flex: "1 1 0%", minWidth: 0 }}>
-          <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-            <div
-              className="map-container"
-              style={{ height: "600px", width: "100%" }}
+          <div className="map-float map-float-filters">
+            <select
+              className="select"
+              value={lgaFilter}
+              onChange={(e) => handleLgaChange(e.target.value)}
             >
-              <MapContainer
-                center={center}
-                zoom={9}
-                minZoom={8}
-                maxBounds={BAUCHI_BOUNDS}
-                maxBoundsViscosity={1.0}
-                style={{ height: "100%", width: "100%" }}
-              >
-                <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
-                <ClusteredMarkers
-                  points={pollingUnits}
-                  onSelect={fetchPUDetail}
-                />
-              </MapContainer>
+              <option value="">All LGAs</option>
+              {lgas.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+            <select
+              className="select"
+              value={wardFilter}
+              onChange={(e) => handleWardChange(e.target.value)}
+              disabled={!lgaFilter}
+            >
+              <option value="">All Wards</option>
+              {wards.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name}
+                </option>
+              ))}
+            </select>
+            <select
+              className="select"
+              value={puFilter}
+              onChange={(e) => setPuFilter(e.target.value)}
+              disabled={!wardFilter}
+            >
+              <option value="">All Polling Units</option>
+              {puOptions.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+            <select
+              className="select"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+            >
+              <option value="all">All Statuses</option>
+              <option value="not_started">Not Started</option>
+              <option value="in_progress">In Progress</option>
+              <option value="completed">Completed</option>
+            </select>
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={fetchPollingUnits}
+            >
+              <RefreshCw size={13} /> Refresh
+            </button>
+          </div>
+
+          <div className="map-float map-float-count">
+            <MapPinIcon size={13} />
+            {loading
+              ? "Loading…"
+              : `${pollingUnits.length.toLocaleString()} polling units`}
+          </div>
+
+          <div className="map-float map-float-legend">
+            <div className="map-legend-item">
+              <span
+                className="map-legend-dot"
+                style={{ background: "#9ca3af" }}
+              />{" "}
+              Not Started
+            </div>
+            <div className="map-legend-item">
+              <span
+                className="map-legend-dot"
+                style={{ background: "#f59e0b" }}
+              />{" "}
+              In Progress
+            </div>
+            <div className="map-legend-item">
+              <span
+                className="map-legend-dot"
+                style={{ background: "#16a34a" }}
+              />{" "}
+              Completed
             </div>
           </div>
         </div>
+      </div>
 
+      <Drawer
+        open={!!selectedPU}
+        onClose={() => setSelectedPU(null)}
+        title={selectedPU?.name || "Polling Unit"}
+      >
         {selectedPU && (
-          <div style={{ width: 320, flex: "0 0 320px" }}>
-            <div className="card">
-              <div className="card-header">
-                <div className="card-title">PU Details</div>
-                <button
-                  onClick={() => setSelectedPU(null)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  ✕
-                </button>
+          <>
+            <div className="text-xs text-gray-500">{selectedPU.code}</div>
+            <div className="text-xs text-gray-500">{selectedPU.location}</div>
+            {!selectedPU.is_location_precise && (
+              <div className="text-xs mt-1" style={{ color: "#b45309" }}>
+                Approximate location — not geocoded in source data
               </div>
+            )}
 
-              <div className="mb-3">
-                <div className="text-sm font-semibold">{selectedPU.name}</div>
-                <div className="text-xs text-gray-500">{selectedPU.code}</div>
-                <div className="text-xs text-gray-500">
-                  {selectedPU.location}
-                </div>
-                {!selectedPU.is_location_precise && (
-                  <div className="text-xs mt-1" style={{ color: "#b45309" }}>
-                    Approximate location — not geocoded in source data
-                  </div>
-                )}
+            <div className="mb-3 mt-3">
+              <div className="text-xs text-gray-500 uppercase font-semibold">
+                Hierarchy
               </div>
-
-              <div className="mb-3">
-                <div className="text-xs text-gray-500 uppercase font-semibold">
-                  Hierarchy
-                </div>
-                <div className="text-sm">
-                  {selectedPU.lga} → {selectedPU.ward}
-                </div>
-              </div>
-
-              <div className="mb-3">
-                <div className="text-xs text-gray-500 uppercase font-semibold">
-                  Progress
-                </div>
-                <div className="flex justify-between text-sm mt-1">
-                  <span>Target: {selectedPU.target ?? 0}</span>
-                  <span className="font-semibold">
-                    {selectedPU.registered ?? 0}
-                  </span>
-                </div>
-                <div className="progress-bar mt-1">
-                  <div
-                    className="progress-bar-fill"
-                    style={{
-                      width: `${Math.min(selectedPU.completion ?? 0, 100)}%`,
-                    }}
-                  />
-                </div>
-                <div className="text-xs text-gray-500 mt-1">
-                  {selectedPU.completion ?? 0}% complete
-                </div>
-              </div>
-
-              <div className="mb-3">
-                <div className="text-xs text-gray-500 uppercase font-semibold">
-                  Current Agent
-                </div>
-                {selectedPU.current_agent ? (
-                  <div className="text-sm">
-                    <div className="font-medium">
-                      {selectedPU.current_agent.name}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      Since{" "}
-                      {new Date(
-                        selectedPU.current_agent.assigned_at
-                      ).toLocaleDateString()}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-sm text-gray-400">No agent assigned</div>
-                )}
-              </div>
-
-              <div>
-                <div className="text-xs text-gray-500 uppercase font-semibold mb-2">
-                  Recent Registrations
-                </div>
-                {selectedPU.recent_registrations?.length > 0 ? (
-                  selectedPU.recent_registrations.map((r) => (
-                    <div
-                      key={r.id}
-                      className="flex justify-between text-xs py-1 border-b border-gray-100"
-                    >
-                      <span>{r.full_name}</span>
-                      <span className="text-gray-400">
-                        {new Date(r.registered_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-xs text-gray-400">
-                    No registrations yet
-                  </div>
-                )}
+              <div className="text-sm">
+                {selectedPU.lga} → {selectedPU.ward}
               </div>
             </div>
-          </div>
+
+            <div className="mb-3">
+              <div className="text-xs text-gray-500 uppercase font-semibold">
+                Progress
+              </div>
+              <div className="flex justify-between text-sm mt-1">
+                <span>Target: {selectedPU.target}</span>
+                <span className="font-semibold">{selectedPU.registered}</span>
+              </div>
+              <div className="progress-bar mt-1">
+                <div
+                  className="progress-bar-fill"
+                  style={{ width: `${Math.min(selectedPU.completion, 100)}%` }}
+                />
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                {selectedPU.completion}% complete
+              </div>
+            </div>
+
+            <div className="mb-3">
+              <div className="text-xs text-gray-500 uppercase font-semibold">
+                Current Agent
+              </div>
+              {selectedPU.current_agent ? (
+                <div className="text-sm">
+                  <div className="font-medium">
+                    {selectedPU.current_agent.name}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    Since{" "}
+                    {new Date(
+                      selectedPU.current_agent.assigned_at
+                    ).toLocaleDateString()}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-400">No agent assigned</div>
+              )}
+            </div>
+
+            <div>
+              <div className="text-xs text-gray-500 uppercase font-semibold mb-2">
+                Recent Registrations
+              </div>
+              {selectedPU.recent_registrations?.length > 0 ? (
+                selectedPU.recent_registrations.map((r) => (
+                  <div
+                    key={r.id}
+                    className="flex justify-between text-xs py-1 border-b border-gray-100"
+                  >
+                    <span>{r.full_name}</span>
+                    <span className="text-gray-400">
+                      {new Date(r.registered_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="text-xs text-gray-400">
+                  No registrations yet
+                </div>
+              )}
+            </div>
+          </>
         )}
-      </div>
+      </Drawer>
     </div>
   );
 }

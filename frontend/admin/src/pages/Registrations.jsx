@@ -17,6 +17,7 @@ import { useLocations } from "../hooks/useLocations";
 import Drawer from "../components/Drawer";
 import SkeletonTable from "../components/SkeletonTable";
 import EmptyState from "../components/EmptyState";
+import Pagination from "../components/Pagination";
 
 const statusMeta = {
   synced: { badge: "green", icon: CheckCircle2, label: "Synced" },
@@ -421,17 +422,11 @@ export default function Registrations() {
               </tbody>
             </table>
           </div>
-          <div className="pagination">
-            {Array.from({ length: pagination.last_page || 1 }, (_, i) => (
-              <button
-                key={i}
-                className={pagination.current_page === i + 1 ? "active" : ""}
-                onClick={() => fetchRecords(i + 1)}
-              >
-                {i + 1}
-              </button>
-            ))}
-          </div>
+          <Pagination
+            currentPage={pagination.current_page || 1}
+            lastPage={pagination.last_page || 1}
+            onChange={fetchRecords}
+          />
         </div>
       )}
 

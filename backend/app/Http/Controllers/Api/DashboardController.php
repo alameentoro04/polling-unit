@@ -113,7 +113,7 @@ class DashboardController extends Controller
             ])
             ->where('created_at', '>=', now()->subHours(24))
             ->orderByDesc('created_at')
-            ->limit(300) // raw rows before aggregation, not the final feed size
+            ->limit(300)
             ->get();
 
         $items = [];
@@ -219,7 +219,6 @@ class DashboardController extends Controller
 
         $lastUpdated = $query->max('updated_at') ?? now();
         $count = $query->count();
-
         $complaintsUpdated = Complaint::max('updated_at') ?? now();
         $complaintsCount = Complaint::count();
 
@@ -333,6 +332,10 @@ class DashboardController extends Controller
 
         $agents = $query->get()->map(function ($agent) {
             $target = $agent->assignedPollingUnit?->target_count ?: Setting::get('target_per_pu', 10);
+            $conflicts = \App\Models\Registration::where('registered_by', $agent->id)
+                ->where('sync_status', 'conflict')
+                ->where('is_deleted', false)
+                ->count();
             return [
                 'id' => $agent->id,
                 'name' => $agent->full_name,
@@ -340,6 +343,9 @@ class DashboardController extends Controller
                 'lga' => $agent->assignedPollingUnit?->ward?->lga?->name,
                 'registered' => $agent->registered_count,
                 'target' => $target,
+                'conflicts' => $conflicts,
+                'last_seen_at' => $agent->last_seen_at,
+                'is_active' => $agent->is_active,
             ];
         });
 
@@ -354,7 +360,6 @@ class DashboardController extends Controller
             ->where('is_active', true)
             ->withCount(['registrations as active_registrations_count' => fn($q) => $q->active()]);
         $this->applyScopeToPu($puQuery, $scope);
-
         $notStarted = 0;
         $inProgress = 0;
         $completed = 0;
